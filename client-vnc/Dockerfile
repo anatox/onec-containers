@@ -41,6 +41,8 @@ RUN tar -C / -Jxpf /tmp/s6-overlay-x86_64.tar.xz \
 
 COPY ./client-vnc/configs/rootfs-v3/ /
 
+ENV S6_KEEP_ENV=1
+
 ENV DISPLAY=:0
 ENV DISPLAY_WIDTH=1440
 ENV DISPLAY_HEIGHT=900
