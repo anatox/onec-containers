@@ -25,8 +25,7 @@ RUN set -xe \
 
 ENV LANG ru_RU.UTF-8
 
-COPY ./swarm-jenkins-agent/docker-entrypoint.sh /
-RUN chmod 755 /docker-entrypoint.sh \
-  && chmod +x /docker-entrypoint.sh
+# add jenkins agent to s6-overlay
+COPY ./swarm-jenkins-agent/configs/rootfs-v3/ /
 
-ENTRYPOINT ["/docker-entrypoint.sh"]
+ENTRYPOINT ["/init"]

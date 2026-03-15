@@ -2,7 +2,7 @@
 ARG DOCKER_REGISTRY_URL
 ARG BASE_IMAGE
 ARG BASE_TAG
-FROM ${DOCKER_REGISTRY_URL:+"$DOCKER_REGISTRY_URL/"}${BASE_IMAGE}:${BASE_TAG} AS downloader
+FROM ${DOCKER_REGISTRY_URL}${DOCKER_REGISTRY_URL:+/}${BASE_IMAGE}:${BASE_TAG} AS downloader
 
 # Копирование скрипта скачивания и локальных дистрибутивов
 COPY ./scripts/download_yard.sh /download.sh
@@ -34,7 +34,7 @@ ENV LC_ALL ru_RU.UTF-8
 RUN /download.sh "$ONEC_USERNAME" "$ONEC_PASSWORD" "$ONEC_VERSION" "client"
 
 # Начало основной стадии сборки
-FROM ubuntu:18.04 AS base
+FROM ubuntu:20.04 AS base
 
 # Копируем скрипты и файлы установки
 ARG ONEC_VERSION
@@ -44,11 +44,45 @@ ENV nls=$nls_enabled
 ENV distrPath=/tmp/downloads/Platform83/${ONEC_VERSION}
 ENV installer_type=client
 
-RUN set -xe \
-  && chmod 777 -R /tmp \
+# Установка gnupg и wget
+RUN set -e \
+  && apt-get update \
+  && apt-get install -y --no-install-recommends \
+    gnupg \
+    wget \
+    ca-certificates \
+  && mkdir -p -m 0755 /etc/apt/keyrings \
+  && apt-get clean \
+  && rm -rf /var/lib/apt/lists/*
+
+# Добавление репо bionic для libenchant1c2a
+RUN set -e \
+  && wget -qO- 'https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x3B4FE6ACC0B21F32' | \
+  gpg --dearmor -o /etc/apt/keyrings/ubuntu-archive-bionic.gpg \
+  && echo "deb [signed-by=/etc/apt/keyrings/ubuntu-archive-bionic.gpg arch=amd64] \
+    http://archive.ubuntu.com/ubuntu bionic main universe" | \
+    tee /etc/apt/sources.list.d/bionic-archive.list > /dev/null
+
+# Установка недостающих библиотек
+RUN set -e \
   && apt-get update \
   && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-      libwebkitgtk-3.0-0
+    libgtk-3-0 \
+    libenchant1c2a \
+    libharfbuzz-icu0 \
+    libgstreamer1.0-0 \
+    libgstreamer-plugins-base1.0-0 \
+    gstreamer1.0-plugins-good \
+    gstreamer1.0-plugins-bad \
+    libsecret-1-0 \
+    libsoup2.4-1 \
+    libsqlite3-0 \
+    libgl1 \
+    libegl1 \
+    libxrender1 \
+    libxfixes3 \
+    libxslt1.1 \
+    geoclue-2.0
 
 COPY ./scripts/install_new.sh /install.sh
 COPY --from=downloader /tmp/ /tmp/
@@ -65,9 +99,9 @@ RUN chmod +x /create-symlink-to-current-1cv8.sh \
   && /create-symlink-to-current-1cv8.sh \
   && rm /create-symlink-to-current-1cv8.sh
 
-COPY ./configs/client/current/ /opt/1cv8/current/
+COPY ./client/configs/current/ /opt/1cv8/current/
 
-FROM ubuntu:18.04
+FROM ubuntu:20.04
 LABEL maintainer="Anton Kvashenkin <anton.jugatsu@gmail.com> (@jugatsu)"
 
 ARG onec_uid="999"
@@ -75,10 +109,28 @@ ARG onec_gid="999"
 
 COPY --from=base /opt /opt
 
-RUN set -xe \
-  && chmod 777 -R /tmp \
+# Установка gnupg и wget
+RUN set -e \
   && apt-get update \
-  && echo ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula select true | debconf-set-selections \
+  && apt-get install -y --no-install-recommends \
+    gnupg \
+    wget \
+    ca-certificates \
+  && mkdir -p -m 0755 /etc/apt/keyrings \
+  && apt-get clean \
+  && rm -rf /var/lib/apt/lists/*
+
+# Добавление репо bionic для libwebkitgtk-3.0-0
+RUN set -e \
+  && wget -qO- 'https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x3B4FE6ACC0B21F32' | \
+  gpg --dearmor -o /etc/apt/keyrings/ubuntu-archive-bionic.gpg \
+  && echo "deb [signed-by=/etc/apt/keyrings/ubuntu-archive-bionic.gpg arch=amd64] \
+    http://archive.ubuntu.com/ubuntu bionic main universe" | \
+    tee /etc/apt/sources.list.d/bionic-archive.list > /dev/null
+
+RUN set -e \
+  && apt-get update \
+  && echo "ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula select true" | debconf-set-selections \
   && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
       locales \
       ca-certificates \
