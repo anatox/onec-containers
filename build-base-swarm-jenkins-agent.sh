@@ -21,7 +21,6 @@ fi
 
 docker build \
     --pull \
-    $no_cache_arg \
     --build-arg DOCKER_REGISTRY_URL=library \
     --build-arg BASE_IMAGE=ubuntu \
     --build-arg BASE_TAG=20.04 \
