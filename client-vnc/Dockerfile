@@ -9,6 +9,9 @@ LABEL maintainer="Dima Ovcharenko <d.ovcharenko90@gmail.com>, Korus Consulting L
 
 USER root
 
+# FIX: remove old libstdc++ shipped with 1C (causes GLIBCXX errors)
+RUN find /opt/1cv8 -name "libstdc++.so*" -delete
+
 RUN apt-get update \
   && apt-mark hold iptables \
   && env DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
@@ -39,6 +42,9 @@ RUN apt-get update \
 
 # Disable accessibility
 ENV NO_AT_BRIDGE=1
+
+# Fix WebKit / GTK issues in containers
+ENV QT_X11_NO_MITSHM=1
 
 # Disable session manager
 ENV XDG_SESSION_TYPE=x11
