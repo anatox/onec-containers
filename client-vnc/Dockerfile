@@ -21,7 +21,6 @@ RUN apt-get update \
     # Utilities
     psmisc \
     xdg-utils \
-    xz-utils \
   # Fix xfce theme
   && sed -i 's%<property name="ThemeName" type="string" value="Xfce"/>%<property name="ThemeName" type="string" value="Raleigh"/>%' \
     /etc/xdg/xfce4/xfconf/xfce-perchannel-xml/xsettings.xml \
