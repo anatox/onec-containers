@@ -31,14 +31,9 @@ RUN apt-get update \
     /tmp/* \
     /var/tmp/*
 
-# Install s6-overlay v3
-ARG S6_OVERLAY_VERSION=3.2.2.0
-ADD https://github.com/just-containers/s6-overlay/releases/download/v${S6_OVERLAY_VERSION}/s6-overlay-noarch.tar.xz /tmp
-RUN tar -C / -Jxpf /tmp/s6-overlay-noarch.tar.xz
-ADD https://github.com/just-containers/s6-overlay/releases/download/v${S6_OVERLAY_VERSION}/s6-overlay-x86_64.tar.xz /tmp
-RUN tar -C / -Jxpf /tmp/s6-overlay-x86_64.tar.xz \
-  && rm -f /tmp/s6-overlay-*.tar.xz
+# must be built on top of s6-overlay layer
 
+# add services to s6-overlay
 COPY ./client-vnc/configs/rootfs-v3/ /
 
 ENV S6_KEEP_ENV=1

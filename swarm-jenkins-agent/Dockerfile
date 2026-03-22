@@ -14,7 +14,6 @@ RUN set -xe \
       locales \
       openssh-client \
       wget \
-  # git-lfs
   && curl -s https://packagecloud.io/install/repositories/github/git-lfs/script.deb.sh | bash \
   && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
     git-lfs \
@@ -25,7 +24,9 @@ RUN set -xe \
 
 ENV LANG ru_RU.UTF-8
 
-# add jenkins agent to s6-overlay
+# must be built on top of s6-overlay layer
+
+# add services to s6-overlay
 COPY ./swarm-jenkins-agent/configs/rootfs-v3/ /
 
 ENTRYPOINT ["/init"]
