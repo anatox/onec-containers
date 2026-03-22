@@ -2,9 +2,7 @@
 
 wget -O agent.jar "${DOCKER_SWARM_PLUGIN_JENKINS_AGENT_JAR_URL}"
 exec java -jar agent.jar \
-  -url "${JENKINS_URL}" \
-  -secret "${DOCKER_SWARM_PLUGIN_JENKINS_AGENT_SECRET}" \
+  -jnlpUrl "${$DOCKER_SWARM_PLUGIN_JENKINS_AGENT_JNLP_URL}" \
+  -secret "${$DOCKER_SWARM_PLUGIN_JENKINS_AGENT_SECRET}" \
   -noReconnect \
-  -name "${JENKINS_AGENT_NAME}" \
-  -webSocket \
   -workDir /home/jenkins
