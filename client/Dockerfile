@@ -5,9 +5,8 @@ ARG BASE_TAG
 FROM ${DOCKER_REGISTRY_URL}${DOCKER_REGISTRY_URL:+/}${BASE_IMAGE}:${BASE_TAG} AS downloader
 
 # Копирование скрипта скачивания и локальных дистрибутивов
-COPY ./scripts/download_yard.sh /download.sh
+COPY --chmod=755 ./scripts/download_yard.sh /download.sh
 COPY ./distr /distr
-RUN chmod +x /download.sh
 
 # Скачивание дистрибутива 1С с использованием вынесенного скрипта
 ARG ONEC_USERNAME
@@ -84,13 +83,12 @@ RUN set -e \
     libxslt1.1 \
     geoclue-2.0
 
-COPY ./scripts/install_new.sh /install.sh
+COPY --chmod=755 ./scripts/install_new.sh /install.sh
 COPY --from=downloader /tmp/ /tmp/
 WORKDIR ${distrPath}      
 
 SHELL ["/bin/bash", "-c"]
 RUN ls . \
-  && chmod +x /install.sh \
   && sync; /install.sh
 
 # create symlink to current 1c:enterprise directory
