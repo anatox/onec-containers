@@ -51,7 +51,7 @@ docker build \
     --build-arg BASE_IMAGE=onec-client \
     --build-arg BASE_TAG=$ONEC_VERSION \
     -t ${DOCKER_REGISTRY_URL:+"$DOCKER_REGISTRY_URL/"}onec-client-s6:$ONEC_VERSION \
-    -f client/Dockerfile \
+    -f s6-overlay/Dockerfile \
     $last_arg
 
 docker build \
