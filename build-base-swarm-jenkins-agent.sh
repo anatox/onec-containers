@@ -62,7 +62,6 @@ fi
 
 docker build \
     --pull \
-    --build-arg ONEC_VERSION=$ONEC_VERSION \
     --build-arg DOCKER_REGISTRY_URL=$DOCKER_REGISTRY_URL \
     --build-arg BASE_IMAGE=onec-client-s6 \
     --build-arg BASE_TAG=$ONEC_VERSION \

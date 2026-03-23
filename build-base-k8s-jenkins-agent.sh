@@ -47,8 +47,24 @@ else
 fi
 
 docker build \
+    --build-arg DOCKER_REGISTRY_URL=$DOCKER_REGISTRY_URL \
+    --build-arg BASE_IMAGE=onec-client \
+    --build-arg BASE_TAG=$ONEC_VERSION \
+    -t ${DOCKER_REGISTRY_URL:+"$DOCKER_REGISTRY_URL/"}onec-client-s6:$ONEC_VERSION \
+    -f s6-overlay/Dockerfile \
+    $last_arg
+
+if [[ -n "$DOCKER_REGISTRY_URL" ]]; then
+  docker push $DOCKER_REGISTRY_URL/onec-client-s6:$ONEC_VERSION
+else
+  echo "DOCKER_REGISTRY_URL not set, skipping docker push."
+fi
+
+docker build \
     --pull \
-    --build-arg ONEC_VERSION=$ONEC_VERSION \
+    --build-arg DOCKER_REGISTRY_URL=$DOCKER_REGISTRY_URL \
+    --build-arg BASE_IMAGE=onec-client-s6 \
+    --build-arg BASE_TAG=$ONEC_VERSION \
     --build-arg DOCKER_REGISTRY_URL=$DOCKER_REGISTRY_URL \
     -t ${DOCKER_REGISTRY_URL:+"$DOCKER_REGISTRY_URL/"}onec-client-vnc:$ONEC_VERSION \
     -f client-vnc/Dockerfile \
