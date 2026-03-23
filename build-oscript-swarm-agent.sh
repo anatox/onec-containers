@@ -20,17 +20,15 @@ if [ "${NO_CACHE}" = 'true' ] ; then
 fi
 
 docker build \
-	--pull \
-    $no_cache_arg \
-	--build-arg DOCKER_REGISTRY_URL=library \
+    --pull \
+    --build-arg DOCKER_REGISTRY_URL=library \
     --build-arg BASE_IMAGE=eclipse-temurin \
     --build-arg BASE_TAG=17 \
     -t ${DOCKER_REGISTRY_URL:+"$DOCKER_REGISTRY_URL/"}oscript-jdk:latest \
-	-f oscript/Dockerfile \
+    -f oscript/Dockerfile \
     $last_arg
 
 docker build \
-    $no_cache_arg \
     --build-arg DOCKER_REGISTRY_URL=$DOCKER_REGISTRY_URL \
     --build-arg BASE_IMAGE=oscript-jdk \
     --build-arg BASE_TAG=latest \
