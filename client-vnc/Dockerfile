@@ -1,6 +1,9 @@
 ARG DOCKER_REGISTRY_URL
-ARG ONEC_VERSION
-FROM ${DOCKER_REGISTRY_URL}${DOCKER_REGISTRY_URL:+/}onec-client:${ONEC_VERSION}
+ARG BASE_IMAGE
+ARG BASE_TAG
+
+# BASE_IMAGE must contain s6-overlay
+FROM ${DOCKER_REGISTRY_URL}${DOCKER_REGISTRY_URL:+/}${BASE_IMAGE}:${BASE_TAG}
 
 LABEL maintainer="Dima Ovcharenko <d.ovcharenko90@gmail.com>, Korus Consulting LLC"
 
@@ -29,8 +32,6 @@ RUN apt-get update \
     /var/cache/debconf \
     /tmp/* \
     /var/tmp/*
-
-# must be built on top of s6-overlay layer
 
 # add services to s6-overlay
 COPY ./client-vnc/configs/rootfs-v3/ /

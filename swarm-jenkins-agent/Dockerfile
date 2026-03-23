@@ -2,6 +2,7 @@ ARG DOCKER_REGISTRY_URL
 ARG BASE_IMAGE
 ARG BASE_TAG
 
+# BASE_IMAGE must contain s6-overlay
 FROM ${DOCKER_REGISTRY_URL:+"$DOCKER_REGISTRY_URL/"}${BASE_IMAGE}:${BASE_TAG}
 
 LABEL maintainer="Nikita Gryzlov <NikGryzlov@1bit.com>, FirstBit"
@@ -23,8 +24,6 @@ RUN set -xe \
   && localedef -i ru_RU -c -f UTF-8 -A /usr/share/locale/locale.alias ru_RU.UTF-8
 
 ENV LANG ru_RU.UTF-8
-
-# must be built on top of s6-overlay layer
 
 # add services to s6-overlay
 COPY ./swarm-jenkins-agent/configs/rootfs-v3/ /
