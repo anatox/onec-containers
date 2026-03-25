@@ -126,6 +126,7 @@ RUN set -e \
     http://archive.ubuntu.com/ubuntu bionic main universe" | \
     tee /etc/apt/sources.list.d/bionic-archive.list > /dev/null
 
+# libwebkit2gtk-4.0-37 требуется для 8.3.24
 RUN set -e \
   && apt-get update \
   && echo "ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula select true" | debconf-set-selections \
@@ -134,6 +135,7 @@ RUN set -e \
       ca-certificates \
       libgtk2.0-0 \
       libwebkitgtk-3.0-0 \
+      libwebkit2gtk-4.0-37 \
       ttf-mscorefonts-installer \
       libfontconfig1 \
       libgsf-1-114 \
