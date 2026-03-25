@@ -11,7 +11,7 @@
   - [Как сбилдить образы](#как-сбилдить-образы)
   - [Как запустить в docker-compose](#как-запустить-в-docker-compose)
   - [Как использовать готовые дистрибутивы](#как-использовать-готовые-дистрибутивы)
-  - [Как использовать nethasp.ini в Jenkins + Docker Swarm plugin](#как-использовать-nethaspini-в-jenkins--docker-swarm-plugin)
+  - [Как использовать образы в Jenkins в режиме Docker Swarm](#как-использовать-образы-в-jenkins)
 - [Оглавление](#оглавление)
   - [Сервер](#сервер)
   - [Сервер с дополнительными языками](#сервер-с-дополнительными-языками)
@@ -85,7 +85,14 @@ env.bat
 
 Вы можете использовать готовые дистрибутивы платформы, для этого достаточно разместить их в папке `distr`. Скрипты будут автоматически использовать их для сборки образа.
 
-## Как использовать nethasp.ini в Jenkins + Docker Swarm plugin
+## Как использовать образы в Jenkins в режиме Docker Swarm
+
+Поддерживаемые плагины:
+
+- [Swarm Agents Cloud](https://plugins.jenkins.io/swarm-agents-cloud/)
+- [Docker Swarm (устарел)](https://plugins.jenkins.io/docker-swarm/)
+
+### Настройка nethasp.ini
 
 - взять ваш файл nethasp.ini
 - создать из него docker config командой `docker config create nethasp.ini ./nethasp.ini`
