@@ -44,7 +44,7 @@ fi
 
 docker build \
     --build-arg DOCKER_REGISTRY_URL=$DOCKER_REGISTRY_URL \
-    --build-arg BASE_IMAGE=${DOCKER_REGISTRY_URL:+"$DOCKER_REGISTRY_URL/"}oscript-jdk-s6 \
+    --build-arg BASE_IMAGE=oscript-jdk-s6 \
     --build-arg BASE_TAG=latest \
     -t ${DOCKER_REGISTRY_URL:+"$DOCKER_REGISTRY_URL/"}oscript-agent:latest \
     -f swarm-jenkins-agent/Dockerfile \
