@@ -21,9 +21,13 @@ RUN apt-get update \
     # Desktop environment
     xfce4 \
     xfce4-goodies \
+    libsm6 \
+    libxcb-icccm4 \
+    libx11-xcb1 \
     # Utilities
     psmisc \
     xdg-utils \
+    iproute2 \
   # Fix xfce theme
   && sed -i 's%<property name="ThemeName" type="string" value="Xfce"/>%<property name="ThemeName" type="string" value="Raleigh"/>%' \
     /etc/xdg/xfce4/xfconf/xfce-perchannel-xml/xsettings.xml \
@@ -32,6 +36,15 @@ RUN apt-get update \
     /var/cache/debconf \
     /tmp/* \
     /var/tmp/*
+
+# Disable accessibility
+ENV NO_AT_BRIDGE=1
+
+# Disable session manager
+ENV XDG_SESSION_TYPE=x11
+
+# Skip window manager registration check
+RUN echo "xfce4-panel --disable-wm-check" >> ~/.xsession
 
 # add services to s6-overlay
 COPY ./client-vnc/configs/rootfs-v3/ /
