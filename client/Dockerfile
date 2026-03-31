@@ -159,6 +159,10 @@ RUN groupadd -r grp1cv8 --gid=$onec_gid \
   && mkdir -p /home/usr1cv8/.1cv8 \
   && chown -R usr1cv8:grp1cv8 /home/usr1cv8
 
+# Копирование лицензий
+# Невозможно реализовать через docker config, потому что платформа не работает с лицензиями на Read-only file system
+COPY --chmod=644 ./lic/ /var/1C/licenses
+
 VOLUME /home/usr1cv8/.1cv8/
 
 USER usr1cv8
