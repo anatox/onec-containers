@@ -4,15 +4,15 @@
 
 В данном репозитории находятся файлы для сборки образов [Docker](https://www.docker.com) с платформой [1С:Предприятие](http://v8.1c.ru) 8.3.
 
-# Оглавление
+## Оглавление
 
 - [Описание](#описание)
-- [Использование](#использование)
+  - [Оглавление](#оглавление)
+  - [Использование](#использование)
   - [Как сбилдить образы](#как-сбилдить-образы)
-  - [Как запустить в docker-compose](#как-запустить-в-docker-compose)
   - [Как использовать готовые дистрибутивы](#как-использовать-готовые-дистрибутивы)
-  - [Как использовать образы в Jenkins в режиме Docker Swarm](#как-использовать-образы-в-jenkins)
-- [Оглавление](#оглавление)
+  - [Как использовать образы в Jenkins в режиме Docker Swarm](#как-использовать-образы-в-jenkins-в-режиме-docker-swarm)
+    - [Настройка nethasp.ini](#настройка-nethaspini)
   - [Сервер](#сервер)
   - [Сервер с дополнительными языками](#сервер-с-дополнительными-языками)
   - [Клиент](#клиент)
@@ -26,17 +26,19 @@
   - [oscript](#oscript)
   - [vanessa-runner](#vanessa-runner)
   - [EDT](#edt)
-  - [Исполнитель](#Исполнитель)
+  - [Исполнитель](#исполнитель)
 
-# Использование
+## Использование
 
 В терминале введите:
 
 Команда Linux:
+
 ```bash
 # для Linux
 $ cp .onec.env.example .onec.env
 ```
+
 ```batch
 :: для Windows
 copy .onec.env.bat.example env.bat
@@ -44,15 +46,16 @@ copy .onec.env.bat.example env.bat
 
 Скорректируйте файл `.onec.env` в соответствии со своим окружением:
 
-* ONEC_USERNAME - учётная запись на http://releases.1c.ru
-* ONEC_PASSWORD - пароль для учётной записи на http://releases.1c.ru
-* ONEC_VERSION - версия платформы 1С:Преприятия 8.3, которая будет в образе
-* EDT_VERSION - версия EDT. Обязательно заполнять только при сборке образов с EDT или при использовании замеров покрытия (см. `COVERAGE41C_VERSION`)
-* DOCKER_REGISTRY_URL - Адрес Docker-registry в котором будут храниться образы
-* COVERAGE41C_VERSION - версия Coverage41C
+- ONEC_USERNAME - учётная запись на [releases.1c.ru](https://releases.1c.ru)
+- ONEC_PASSWORD - пароль для учётной записи на [releases.1c.ru](https://releases.1c.ru)
+- ONEC_VERSION - версия платформы 1С:Преприятия 8.3, которая будет в образе
+- EDT_VERSION - версия EDT. Обязательно заполнять только при сборке образов с EDT или при использовании замеров покрытия (см. `COVERAGE41C_VERSION`)
+- DOCKER_REGISTRY_URL - Адрес Docker-registry в котором будут храниться образы
+- COVERAGE41C_VERSION - версия Coverage41C
 Используется при сборке агента скриптами `build-base-*-jenkins-coverage-agent.*`.
-* DEV1C_EXECUTOR_API_KEY - токен для api скачивания 1С:Исполнитель с сайта developer.1c.ru
-* EXECUTOR_VERSION - версия 1С:Исполнитель для сборки
+- DEV1C_EXECUTOR_API_KEY - токен для api скачивания 1С:Исполнитель с сайта developer.1c.ru
+- EXECUTOR_VERSION - версия 1С:Исполнитель для сборки
+- TEST_UTILS_EXTRA_PACKAGES - дополнительные пакеты, которые будут установлены при сборке `test-utils` и которые будут доступны в финальном образе
 
 Затем экспортируйте все необходимые переменные:
 
@@ -60,6 +63,7 @@ copy .onec.env.bat.example env.bat
 # для Linux
 $ source .onec.env
 ```
+
 ```batch
 :: для Windows
 env.bat
@@ -71,15 +75,15 @@ env.bat
 
 1. Если вам нужны образы для использования в docker-swarm:
 
-    * build-base-swarm-jenkins-agent.sh (или build-base-swarm-jenkins-coverage-agent.sh с замерами покрытия)
-    * build-edt-swarm-agent.sh
-    * build-oscript-swarm-agent.sh
+    - build-base-swarm-jenkins-agent.sh (или build-base-swarm-jenkins-coverage-agent.sh с замерами покрытия)
+    - build-edt-swarm-agent.sh
+    - build-oscript-swarm-agent.sh
 
 2. Если же вы планируете использовать k8s:
 
-    * build-base-k8s-jenkins-agent.sh (или build-base-k8s-jenkins-coverage-agent.sh с замерами покрытия)
-    * build-edt-k8s-agent.sh
-    * build-oscript-k8s-agent.sh
+    - build-base-k8s-jenkins-agent.sh (или build-base-k8s-jenkins-coverage-agent.sh с замерами покрытия)
+    - build-edt-k8s-agent.sh
+    - build-oscript-k8s-agent.sh
 
 ## Как использовать готовые дистрибутивы
 
@@ -99,7 +103,8 @@ env.bat
 - в Jenkins, в настройках Docker Agent templates у соответствующих агентов в параметре Configs указать `nethasp.ini:/opt/1cv8/current/conf/nethasp.ini`
 
 ## Сервер
-[(Наверх)](#Оглавление)
+
+[(Наверх)](#оглавление)
 
 ```bash
 docker build --build-arg ONEC_USERNAME=${ONEC_USERNAME} \
@@ -110,7 +115,8 @@ docker build --build-arg ONEC_USERNAME=${ONEC_USERNAME} \
 ```
 
 ## Сервер с дополнительными языками
-[(Наверх)](#Оглавление)
+
+[(Наверх)](#оглавление)
 
 ```bash
 docker build --build-arg ONEC_USERNAME=${ONEC_USERNAME} \
@@ -122,7 +128,8 @@ docker build --build-arg ONEC_USERNAME=${ONEC_USERNAME} \
 ```
 
 ## Клиент
-[(Наверх)](#Оглавление)
+
+[(Наверх)](#оглавление)
 
 ```bash
 docker build --build-arg ONEC_USERNAME=${ONEC_USERNAME} \
@@ -133,7 +140,8 @@ docker build --build-arg ONEC_USERNAME=${ONEC_USERNAME} \
 ```
 
 ## Клиент с поддержкой VNC
-[(Наверх)](#Оглавление)
+
+[(Наверх)](#оглавление)
 
 ```bash
 docker build --build-arg DOCKER_REGISTRY_URL=${DOCKER_REGISTRY_URL} \
@@ -143,7 +151,8 @@ docker build --build-arg DOCKER_REGISTRY_URL=${DOCKER_REGISTRY_URL} \
 ```
 
 ## Клиент с дополнительными языками
-[(Наверх)](#Оглавление)
+
+[(Наверх)](#оглавление)
 
 ```bash
 docker build --build-arg ONEC_USERNAME=${ONEC_USERNAME} \
@@ -155,7 +164,8 @@ docker build --build-arg ONEC_USERNAME=${ONEC_USERNAME} \
 ```
 
 ## Тонкий клиент
-[(Наверх)](#Оглавление)
+
+[(Наверх)](#оглавление)
 
 ```bash
 docker build --build-arg ONEC_USERNAME=${ONEC_USERNAME} \
@@ -166,7 +176,8 @@ docker build --build-arg ONEC_USERNAME=${ONEC_USERNAME} \
 ```
 
 ## Тонкий клиент с дополнительными языками
-[(Наверх)](#Оглавление)
+
+[(Наверх)](#оглавление)
 
 ```bash
 docker build --build-arg ONEC_USERNAME=${ONEC_USERNAME} \
@@ -178,7 +189,8 @@ docker build --build-arg ONEC_USERNAME=${ONEC_USERNAME} \
 ```
 
 ## Хранилище конфигурации
-[(Наверх)](#Оглавление)
+
+[(Наверх)](#оглавление)
 
 ```bash
 docker build --build-arg ONEC_USERNAME=${ONEC_USERNAME} \
@@ -189,7 +201,8 @@ docker build --build-arg ONEC_USERNAME=${ONEC_USERNAME} \
 ```
 
 ## rac-gui
-[(Наверх)](#Оглавление)
+
+[(Наверх)](#оглавление)
 
 ```bash
 docker build --build-arg DOCKER_REGISTRY_URL=${DOCKER_REGISTRY_URL} \
@@ -199,7 +212,8 @@ docker build --build-arg DOCKER_REGISTRY_URL=${DOCKER_REGISTRY_URL} \
 ```
 
 ## gitsync
-[(Наверх)](#Оглавление)
+
+[(Наверх)](#оглавление)
 
 ```bash
 docker build --build-arg DOCKER_REGISTRY_URL=${DOCKER_REGISTRY_URL} \
@@ -209,7 +223,8 @@ docker build --build-arg DOCKER_REGISTRY_URL=${DOCKER_REGISTRY_URL} \
 ```
 
 ## oscript
-[(Наверх)](#Оглавление)
+
+[(Наверх)](#оглавление)
 
 ```bash
 docker build --build-arg DOCKER_REGISTRY_URL=${DOCKER_REGISTRY_URL} \
@@ -219,7 +234,8 @@ docker build --build-arg DOCKER_REGISTRY_URL=${DOCKER_REGISTRY_URL} \
 ```
 
 ## vanessa-runner
-[(Наверх)](#Оглавление)
+
+[(Наверх)](#оглавление)
 
 ```bash
 docker build --build-arg DOCKER_REGISTRY_URL=${DOCKER_REGISTRY_URL} \
@@ -228,7 +244,9 @@ docker build --build-arg DOCKER_REGISTRY_URL=${DOCKER_REGISTRY_URL} \
 ```
 
 ## EDT
-[(Наверх)](#Оглавление)
+
+[(Наверх)](#оглавление)
+
 ```bash
 docker build --build-arg ONEC_USERNAME=${ONEC_USERNAME} \
     --build-arg ONEC_PASSWORD=${ONEC_PASSWORD} \
@@ -238,7 +256,9 @@ docker build --build-arg ONEC_USERNAME=${ONEC_USERNAME} \
 ```
 
 ## Исполнитель
-[(Наверх)](#Оглавление)
+
+[(Наверх)](#оглавление)
+
 ```bash
 ./build-executor.sh
 ```
