@@ -13,7 +13,7 @@ RUN apt-get update \
     inetutils-ping \
     net-tools \
     pandoc \
-    scrot ${TEST_UTILS_EXTRA_PACKAGES}
+    scrot ${TEST_UTILS_EXTRA_PACKAGES} \
   && rm -rf /var/lib/apt/lists/*
 
 RUN echo '#!/bin/bash\n\nscrot "${@:2}"' | tee /usr/local/bin/nircmd \
