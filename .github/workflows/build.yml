@@ -68,7 +68,6 @@ jobs:
         EXECUTOR_VERSION: '7.0.3.3'
         COVERAGE41C_VERSION: '2.7.3'
         DOCKER_SYSTEM_PRUNE: 'false'
-        OPENJDK_VERSION: '17'
       run: |
         docker system prune -af
         docker run -d -p 5000:5000 --name registry registry:2

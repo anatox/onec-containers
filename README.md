@@ -50,6 +50,7 @@ copy .onec.env.bat.example env.bat
 - ONEC_PASSWORD - пароль для учётной записи на [releases.1c.ru](https://releases.1c.ru)
 - ONEC_VERSION - версия платформы 1С:Преприятия 8.3, которая будет в образе
 - EDT_VERSION - версия EDT. Обязательно заполнять только при сборке образов с EDT или при использовании замеров покрытия (см. `COVERAGE41C_VERSION`)
+- OPENJDK_VERSION - версия JDK (temurin)
 - DOCKER_REGISTRY_URL - Адрес Docker-registry в котором будут храниться образы
 - COVERAGE41C_VERSION - версия Coverage41C
 Используется при сборке агента скриптами `build-base-*-jenkins-coverage-agent.*`.
