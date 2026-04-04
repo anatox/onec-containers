@@ -32,6 +32,12 @@ docker build \
     -f s6-overlay/Dockerfile \
     $last_arg
 
+if [[ -n "$DOCKER_REGISTRY_URL" ]]; then
+  docker push $DOCKER_REGISTRY_URL/edt-s6:$edt_escaped
+else
+  echo "DOCKER_REGISTRY_URL not set, skipping docker push."
+fi
+
 docker build \
     --build-arg DOCKER_REGISTRY_URL=$DOCKER_REGISTRY_URL \
     --build-arg BASE_IMAGE=edt-s6 \
