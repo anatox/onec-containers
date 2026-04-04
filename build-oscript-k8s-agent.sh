@@ -37,7 +37,7 @@ docker build \
     $last_arg
 
 if [[ -n "$DOCKER_REGISTRY_URL" ]]; then
-  docker push $DOCKER_REGISTRY_URL/oscript-jdk-s6:$latest
+  docker push $DOCKER_REGISTRY_URL/oscript-jdk-s6:latest
 else
   echo "DOCKER_REGISTRY_URL not set, skipping docker push."
 fi
