@@ -2,6 +2,7 @@ ARG DOCKER_REGISTRY_URL
 ARG BASE_IMAGE
 ARG BASE_TAG
 
+# BASE_IMAGE must contain s6-overlay
 FROM ${DOCKER_REGISTRY_URL:+"$DOCKER_REGISTRY_URL/"}${BASE_IMAGE}:${BASE_TAG}
 
 LABEL maintainer="Nikita Gryzlov <NikGryzlov@1bit.com>, FirstBit"
@@ -14,7 +15,6 @@ RUN set -xe \
       locales \
       openssh-client \
       wget \
-  # git-lfs
   && curl -s https://packagecloud.io/install/repositories/github/git-lfs/script.deb.sh | bash \
   && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
     git-lfs \
@@ -25,8 +25,7 @@ RUN set -xe \
 
 ENV LANG ru_RU.UTF-8
 
-COPY ./swarm-jenkins-agent/docker-entrypoint.sh /
-RUN chmod 755 /docker-entrypoint.sh \
-  && chmod +x /docker-entrypoint.sh
+# add services to s6-overlay
+COPY ./swarm-jenkins-agent/configs/rootfs-v3/ /
 
-ENTRYPOINT ["/docker-entrypoint.sh"]
+ENTRYPOINT ["/init"]

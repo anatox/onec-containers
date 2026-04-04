@@ -23,16 +23,13 @@ if %EDT_MAJOR_VERSION% GEQ "2024" (
 
 if %ERRORLEVEL% neq 0 goto end
 
-set no_cache_arg=
-if "%NO_CACHE%"=="true" (SET no_cache_arg="--no-cache")
+if %NO_CACHE%=="true" (SET last_arg="--no-cache .") else (SET last_arg=".")
 
-set last_arg=.
 set edt_version=%EDT_VERSION%
 set edt_escaped=%edt_version: =_%
 
 docker build ^
     --pull ^
-    %no_cache_arg% ^
     --build-arg DOCKER_REGISTRY_URL=library ^
     --build-arg BASE_IMAGE=ubuntu ^
     --build-arg BASE_TAG=20.04 ^
@@ -42,7 +39,6 @@ docker build ^
     %last_arg%
 
 docker build ^
-    %no_cache_arg% ^
     --build-arg ONEC_USERNAME=%ONEC_USERNAME% ^
     --build-arg ONEC_PASSWORD=%ONEC_PASSWORD% ^
     --build-arg EDT_VERSION=%EDT_VERSION% ^

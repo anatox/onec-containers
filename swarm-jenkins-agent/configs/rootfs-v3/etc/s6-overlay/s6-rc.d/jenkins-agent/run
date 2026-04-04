@@ -1,0 +1,23 @@
+#!/command/with-contenv sh
+
+set -eu
+
+: "${DOCKER_SWARM_PLUGIN_JENKINS_AGENT_JAR_URL:?Required env var not set}"
+: "${DOCKER_SWARM_PLUGIN_JENKINS_AGENT_JNLP_URL:?Required env var not set}"
+: "${DOCKER_SWARM_PLUGIN_JENKINS_AGENT_SECRET:?Required env var not set}"
+
+# compatibility with docker-swarm-plugin
+: "${JENKINS_URL:=$DOCKER_SWARM_PLUGIN_JENKINS_URL}"
+: "${JENKINS_URL:?Required env var not set}"
+: "${JENKINS_AGENT_NAME:=$DOCKER_SWARM_PLUGIN_JENKINS_AGENT_NAME}"
+: "${JENKINS_AGENT_NAME:?Required env var not set}"
+
+wget -O agent.jar "${DOCKER_SWARM_PLUGIN_JENKINS_AGENT_JAR_URL}"
+
+exec java -jar agent.jar \
+  -url "${JENKINS_URL}" \
+  -secret "${DOCKER_SWARM_PLUGIN_JENKINS_AGENT_SECRET}" \
+  -name "${JENKINS_AGENT_NAME}" \
+  -noReconnect \
+  -webSocket \
+  -workDir /home/jenkins

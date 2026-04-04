@@ -1,2 +1,4 @@
 *.sh eol=lf
-configs/client-vnc/rootfs/etc/** eol=lf
+client/configs/** eol=lf
+client-vnc/configs/** eol=lf
+swarm-jenkins-agent/configs/** eol=lf

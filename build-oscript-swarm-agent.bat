@@ -11,13 +11,29 @@ if %ERRORLEVEL% neq 0 goto end
 if %NO_CACHE%=="true" (SET last_arg="--no-cache .") else (SET last_arg=".")
 
 docker build ^
-	--pull ^
-	--build-arg DOCKER_REGISTRY_URL=library ^
+    --pull ^
+    --build-arg DOCKER_REGISTRY_URL=%DOCKER_REGISTRY_URL% ^
     --build-arg BASE_IMAGE=eclipse-temurin ^
     --build-arg BASE_TAG=17 ^
     -t %DOCKER_REGISTRY_URL%/oscript-jdk:latest ^
     -f oscript/Dockerfile ^
     %last_arg%
+
+if %ERRORLEVEL% neq 0 goto end
+
+docker build ^
+    --build-arg DOCKER_REGISTRY_URL=%DOCKER_REGISTRY_URL% ^
+    --build-arg BASE_IMAGE=oscript-jdk ^
+    --build-arg BASE_TAG=latest ^
+    -t %DOCKER_REGISTRY_URL%/oscript-jdk-s6:latest ^
+    -f s6-overlay/Dockerfile ^
+    %last_arg%
+
+if defined DOCKER_REGISTRY_URL (
+  docker push %DOCKER_REGISTRY_URL%/oscript-jdk-s6:latest
+) else (
+  echo DOCKER_REGISTRY_URL not set, skipping docker push.
+)
 
 if %ERRORLEVEL% neq 0 goto end
 

@@ -4,6 +4,8 @@ ARG BASE_TAG
 
 FROM ${DOCKER_REGISTRY_URL:+"$DOCKER_REGISTRY_URL/"}${BASE_IMAGE}:${BASE_TAG}
 
+ARG TEST_UTILS_EXTRA_PACKAGES=""
+
 # Installing additional dependencies
 RUN apt-get update \
   && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
@@ -11,7 +13,7 @@ RUN apt-get update \
     inetutils-ping \
     net-tools \
     pandoc \
-    scrot \
+    scrot ${TEST_UTILS_EXTRA_PACKAGES} \
   && rm -rf /var/lib/apt/lists/*
 
 RUN echo '#!/bin/bash\n\nscrot "${@:2}"' | tee /usr/local/bin/nircmd \

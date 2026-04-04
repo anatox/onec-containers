@@ -10,9 +10,8 @@ ARG DOCKER_REGISTRY_URL
 FROM ${DOWNLOADER_REGISTRY_URL:+"$DOWNLOADER_REGISTRY_URL/"}${DOWNLOADER_IMAGE}:${DOWNLOADER_TAG} AS downloader
 
 # Копирование скрипта скачивания и локальных дистрибутивов
-COPY ./scripts/download_yard.sh /download.sh
+COPY --chmod=755 ./scripts/download_yard.sh /download.sh
 COPY ./distr /distr
-RUN chmod +x /download.sh
 
 # Скачивание дистрибутива 1С с использованием вынесенного скрипта
 ARG ONEC_USERNAME
