@@ -17,7 +17,7 @@ install_from_deb() {
         else
             dpkg -i "1c-enterprise*-{common,server,ws,crs}_*.deb"
         fi
-      ;;  
+      ;;
       client)
         if [ "$nls" = true ]; then
             dpkg -i "1c-enterprise*-{common,server,client}*.deb"
@@ -27,9 +27,9 @@ install_from_deb() {
         ;;
       thin-client)
         if [ "$nls" = true ]; then
-            dpkg -i "1c-enterprise83-thin-client*.deb"
+            dpkg -i "1c-enterprise*-thin-client*.deb"
         else
-            dpkg -i "1c-enterprise83-thin-client_*.deb"
+            dpkg -i "1c-enterprise*-thin-client_*.deb"
         fi
         ;;
     esac
@@ -46,7 +46,7 @@ install_from_run() {
 
     chmod +x "$run_file"
 
-    if [ "$nls" = true ]; then 
+    if [ "$nls" = true ]; then
       nls_install="az,ar,hy,bg,hu,el,vi,ka,kk,zh,it,es,lv,lt,de,pl,ro,ru,tr,tk,fr,uk"
     else
       nls_install="ru"
@@ -56,7 +56,7 @@ install_from_run() {
       server)
         run_components="server,ws,config_storage_server,$nls_install"
         ;;
-      server_crs) 
+      server_crs)
         run_components="server,ws,config_storage_server,$nls_install"
         ;;
       client)
@@ -80,6 +80,10 @@ install_from_run() {
         exit 1
     fi
 }
+
+ONEC_MAJOR_VER=$(echo "$ONEC_VERSION" | cut -d'.' -f1,2 | tr -d '.')
+
+cd /tmp/downloads/Platform${ONEC_MAJOR_VER}/${ONEC_VERSION}
 
 # Определяем, есть ли .deb файлы
 if ls *.deb 1> /dev/null 2>&1; then

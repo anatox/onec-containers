@@ -39,8 +39,8 @@ FROM ubuntu:20.04 AS base
 ARG ONEC_VERSION
 ARG gosu_ver=1.11
 ARG nls_enabled=false
+
 ENV nls=$nls_enabled
-ENV distrPath=/tmp/downloads/Platform83/${ONEC_VERSION}
 ENV installer_type=client
 
 # Установка gnupg и wget
@@ -85,7 +85,6 @@ RUN set -e \
 
 COPY --chmod=755 ./scripts/install_new.sh /install.sh
 COPY --from=downloader /tmp/ /tmp/
-WORKDIR ${distrPath}      
 
 SHELL ["/bin/bash", "-c"]
 RUN ls . \

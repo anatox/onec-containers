@@ -44,8 +44,6 @@ LABEL maintainer="Nikita Gryzlov <NikGryzlov@1bit.com>, FirstBit"
 ARG EDT_VERSION=2021.3
 ARG downloads=downloads/DevelopmentTools10/${EDT_VERSION}
 
-WORKDIR /tmp
-
 RUN apt-get update \
   && DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -y \
     # downloader dependencies

@@ -8,12 +8,13 @@ installer_type=$4
 
 if [ "$installer_type" = "edt" ]; then
     FOLDER_NAME="DevelopmentTools10"
+    DOWNLOADS_PATH=/tmp/downloads/${FOLDER_NAME}/${EDT_VERSION}
 else
-    FOLDER_NAME="Platform83"
+    ONEC_MAJOR_VER=$(echo "$ONEC_VERSION" | cut -d'.' -f1,2 | tr -d '.')
+
+    FOLDER_NAME="Platform${ONEC_MAJOR_VER}"
+    DOWNLOADS_PATH=/tmp/downloads/${FOLDER_NAME}/${ONEC_VERSION}
 fi
-
-DOWNLOADS_PATH=/tmp/downloads/${FOLDER_NAME}/${ONEC_VERSION}
-
 
 # Преобразование версии для различных целей
 ONEC_VERSION_DOTS=$ONEC_VERSION
@@ -136,6 +137,8 @@ download_distr() {
 # Функция проверки наличия нужных файлов после распаковки
 check_file() {
   found=1
+  echo "Содержимое каталога $DOWNLOADS_PATH:"
+  ls -l $DOWNLOADS_PATH
   # Проверяем, появились ли файлы в каталоге
     if [ "$installer_type" = "edt" ]; then
         # Для edt проверяем наличие специфичного файла
@@ -144,8 +147,6 @@ check_file() {
             found=0
         else
             echo "Не найден файл 1ce-installer-cli"
-            echo "Содержимое каталога $DOWNLOADS_PATH:"
-            ls -l $DOWNLOADS_PATH 
         fi
     elif ls $DOWNLOADS_PATH/*.deb 1> /dev/null 2>&1 || ls $DOWNLOADS_PATH/*.run 1> /dev/null 2>&1; then
         echo "Дистрибутив найден и скачан: $filter"
@@ -160,7 +161,7 @@ check_file() {
 try_download() {
 
   # Определим фильтры для скачивания. Если шаблонов >1 они должны разделяться "|" Скачивается дистрибутив по первому найденному шаблону.
-  APP_FILTER="Технологическая платформа *8\.3"
+  APP_FILTER="Технологическая платформа *8\.[3,5]"
   case "$installer_type" in
     edt)
         echo "Скачиваем дистрибутив EDT"
@@ -223,7 +224,7 @@ if [ $local_distr_found -ne 0 ]; then
     echo "Ошибка: Скачивание версии 8.3.24.1342 и 8.3.24.1368 не поддерживается. Скачайте и распакуйте релиз самостоятельно, и поместите его в папку distr"
     exit 1
   else
-    echo "Версия 1с: $ONEC_VERSION" 
+    echo "Версия 1с: $ONEC_VERSION"
   fi
   try_download
   download_attempted=$?
