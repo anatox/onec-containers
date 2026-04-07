@@ -3,8 +3,9 @@ ARG DOWNLOADER_REGISTRY_URL
 ARG DOWNLOADER_IMAGE
 ARG DOWNLOADER_TAG
 
+# Для EDT 2025.x ОБЯЗАТЕЛЬНО используем Java 17
 ARG BASE_IMAGE=eclipse-temurin
-ARG BASE_TAG=11
+ARG BASE_TAG=17-jdk-jammy
 ARG DOCKER_REGISTRY_URL
 
 FROM ${DOWNLOADER_REGISTRY_URL:+"$DOWNLOADER_REGISTRY_URL/"}${DOWNLOADER_IMAGE}:${DOWNLOADER_TAG} AS downloader
@@ -51,26 +52,31 @@ RUN apt-get update \
     # edt dependencies
     libgtk-3-0 \
     locales \
+    libc-bin \
+    coreutils \
   && rm -rf  \
     /var/lib/apt/lists/* \
     /var/cache/debconf \
     /tmp/* \
-  && localedef -i ru_RU -c -f UTF-8 -A /usr/share/locale/locale.alias ru_RU.UTF-8
+  && localedef -i ru_RU -c -f UTF-8 -A /usr/share/locale/locale.alias ru_RU.UTF-8 \
+  && echo '#!/bin/sh\nif [ "$1" = "LONG_BIT" ]; then echo "64"; else echo "unknown"; fi' > /usr/local/bin/getconf \
+  && chmod +x /usr/local/bin/getconf
 
 # Install EDT
 COPY --from=downloader /tmp/${downloads} /tmp/${downloads}
 
 WORKDIR /tmp/${downloads}
 
-RUN chmod +x ./1ce-installer-cli \
-  && ./1ce-installer-cli install all --ignore-hardware-checks --ignore-signature-warnings\
+RUN chmod -R +x . \
+  && ./1ce-installer-cli install all --ignore-hardware-checks --ignore-signature-warnings \
   && ln -s $(dirname $(find /opt/1C/1CE -name ring)) /opt/1C/1CE/components/1c-enterprise-ring \
   #1cedtcli отсутствует в EDT версии <2023.1.0
   && if [ -n "$(find /opt/1C/1CE -name 1cedtcli)" ]; then ln -s $(dirname $(find /opt/1C/1CE -name 1cedtcli)) /opt/1C/1CE/components/1cedtcli; fi \
   && rm -rf \
     /tmp/* \
   # создадим пустой файл, чтобы не было ошибок на следуюших этапах в случае его отсутствия
-  && if [ ! -f /etc/1C/1CE/ring-commands.cfg ]; then touch /etc/1C/1CE/ring-commands.cfg; fi
+  && if [ ! -f /etc/1C/1CE/ring-commands.cfg ]; then touch /etc/1C/1CE/ring-commands.cfg; fi \
+  && rm /usr/local/bin/getconf
 
 FROM ${BASE_IMAGE}:${BASE_TAG}
 

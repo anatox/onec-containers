@@ -15,12 +15,14 @@ if [ "${DOCKER_SYSTEM_PRUNE}" = 'true' ] ; then
 fi
 
 #Если версия EDT >= 2024.1.0, использовать JDK 17
-if [[ "$(printf "%s\n" "$EDT_VERSION" "2024" | sort -V | head -n 1)" == "2024" ]]; then
-  BASE_IMAGE="azul/zulu-openjdk"
-  BASE_TAG="17"
+if [[ "$EDT_VERSION" == 2024* ]] || [[ "$EDT_VERSION" == 2025* ]]; then
+  # Для новых версий используем Ubuntu + Java 17
+  # (Это надежнее, чем просто голая Java-платформа)
+  BASE_IMAGE="eclipse-temurin"
+  BASE_TAG="17-jdk-jammy" 
 else
   BASE_IMAGE="eclipse-temurin"
-  BASE_TAG="11"
+  BASE_TAG="11-jdk-focal"
 fi
 
 last_arg='.'
