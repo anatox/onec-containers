@@ -95,6 +95,9 @@ env.bat
 Поддерживаемые плагины:
 
 - [Swarm Agents Cloud](https://plugins.jenkins.io/swarm-agents-cloud/)
+
+> ⚠️ ВНИМАНИЕ! При настройке шаблонов агентов в плагине Swarm Agents Cloud необходимо раскрыть раздел `Advanced` и установить флажок `Disable Container Args`.
+
 - [Docker Swarm (устарел)](https://plugins.jenkins.io/docker-swarm/)
 
 ### Настройка nethasp.ini
