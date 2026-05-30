@@ -1,6 +1,8 @@
 name: Build Docker Images
 
 on:
+
+  workflow_dispatch:
   workflow_run:
     workflows: ["Pre-build checks"]
     types:
