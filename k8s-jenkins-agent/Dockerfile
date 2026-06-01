@@ -1,10 +1,9 @@
 # Для сборки использован стандартный шаблон jenkins-inbound-agent https://github.com/jenkinsci/docker-agent/blob/master/debian/Dockerfile
 # Стадию с as jre-build убрал, т.к. у нас на этот момент уже всегда есть джава в контейнере.
-ARG DOCKER_REGISTRY_URL
 ARG BASE_IMAGE
 ARG BASE_TAG
 
-FROM ${DOCKER_REGISTRY_URL:+"$DOCKER_REGISTRY_URL/"}${BASE_IMAGE}:${BASE_TAG} AS agent
+FROM ${BASE_IMAGE}:${BASE_TAG} AS agent
 
 LABEL maintainer="Nikita Gryzlov <NikGryzlov@1bit.com>, FirstBit"
 
@@ -13,15 +12,21 @@ ARG group=jenkins
 ARG uid=1000
 ARG gid=1000
 
-RUN groupadd -g "${gid}" "${group}" \
-  && useradd -l -c "Jenkins user" -d /home/"${user}" -u "${uid}" -g "${gid}" -m "${user}" || echo "user ${user} already exists."
+RUN <<EOF
+  set -eux
+  groupadd -g "${gid}" "${group}" || getent group "${gid}" | cut -d: -f1 | xargs -I{} groupmod -n "${group}" {}
+  useradd -l -c "Jenkins user" -d /home/"${user}" -u "${uid}" -g "${gid}" -m "${user}" || echo "user ${user} already exists."
+EOF
 
 ARG AGENT_WORKDIR=/home/"${user}"/agent
 
 ## Always use the latest Debian packages: no need for versions
 # hadolint ignore=DL3008
-RUN apt-get update \
-  && apt-get --yes --no-install-recommends install \
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt/lists,sharing=locked <<EOF
+  set -eux
+  apt-get update
+  apt-get --yes --no-install-recommends install \
     ca-certificates \
     curl \
     fontconfig \
@@ -31,17 +36,23 @@ RUN apt-get update \
     netbase \
     openssh-client \
     patch \
-    tzdata \
-  && apt-get clean \
-  && rm -rf /tmp/* /var/cache/* /var/lib/apt/lists/*
+    tzdata
+EOF
 
 ARG VERSION=3283.v92c105e0f819
 ADD --chown="${user}":"${group}" "https://repo.jenkins-ci.org/public/org/jenkins-ci/main/remoting/${VERSION}/remoting-${VERSION}.jar" /usr/share/jenkins/agent.jar
-RUN chmod 0644 /usr/share/jenkins/agent.jar \
-  && ln -sf /usr/share/jenkins/agent.jar /usr/share/jenkins/slave.jar
+RUN <<EOF
+  set -eux
+  chmod 0644 /usr/share/jenkins/agent.jar
+  ln -sf /usr/share/jenkins/agent.jar /usr/share/jenkins/slave.jar
+EOF
 
 ENV AGENT_WORKDIR=${AGENT_WORKDIR}
-RUN mkdir -p /home/"${user}"/.jenkins && mkdir -p "${AGENT_WORKDIR}"
+RUN <<EOF
+  set -eux
+  mkdir -p /home/"${user}"/.jenkins
+  mkdir -p "${AGENT_WORKDIR}"
+EOF
 
 VOLUME /home/"${user}"/.jenkins
 VOLUME "${AGENT_WORKDIR}"
@@ -65,10 +76,13 @@ USER root
 COPY ./k8s-jenkins-agent/jenkins-agent /usr/local/bin/jenkins-agent
 COPY ./k8s-jenkins-agent/docker-entrypoint.sh /docker-entrypoint.sh
 
-RUN chmod +x /usr/local/bin/jenkins-agent \
-    && ln -s /usr/local/bin/jenkins-agent /usr/local/bin/jenkins-slave \
-    && chmod 755 /docker-entrypoint.sh \
-    && chmod +x /docker-entrypoint.sh
+RUN <<EOF
+  set -eux
+  chmod +x /usr/local/bin/jenkins-agent
+  ln -s /usr/local/bin/jenkins-agent /usr/local/bin/jenkins-slave
+  chmod 755 /docker-entrypoint.sh
+  chmod +x /docker-entrypoint.sh
+EOF
 # USER ${user}
 
 LABEL \

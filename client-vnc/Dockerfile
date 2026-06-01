@@ -1,9 +1,8 @@
-ARG DOCKER_REGISTRY_URL
 ARG BASE_IMAGE
 ARG BASE_TAG
 
 # BASE_IMAGE must contain s6-overlay
-FROM ${DOCKER_REGISTRY_URL}${DOCKER_REGISTRY_URL:+/}${BASE_IMAGE}:${BASE_TAG}
+FROM ${BASE_IMAGE}:${BASE_TAG}
 
 LABEL maintainer="Dima Ovcharenko <d.ovcharenko90@gmail.com>, Korus Consulting LLC"
 
@@ -12,33 +11,28 @@ USER root
 # FIX: remove old libstdc++ shipped with 1C (causes GLIBCXX errors)
 RUN find /opt/1cv8 -name "libstdc++.so*" -delete
 
-RUN apt-get update \
-  && apt-mark hold iptables \
-  && env DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-    # X11 и VNC
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt/lists,sharing=locked <<EOF
+  set -eux
+  apt-get update
+  apt-mark hold iptables
+  env DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
     dbus-x11 \
     x11-xserver-utils \
     x11-utils \
     xvfb \
     x11vnc \
-    # Desktop environment
     xfce4 \
     xfce4-goodies \
     libsm6 \
     libxcb-icccm4 \
     libx11-xcb1 \
-    # Utilities
     psmisc \
     xdg-utils \
-    iproute2 \
-  # Fix xfce theme
-  && sed -i 's%<property name="ThemeName" type="string" value="Xfce"/>%<property name="ThemeName" type="string" value="Raleigh"/>%' \
-    /etc/xdg/xfce4/xfconf/xfce-perchannel-xml/xsettings.xml \
-  && rm -rf \
-    /var/lib/apt/lists/* \
-    /var/cache/debconf \
-    /tmp/* \
-    /var/tmp/*
+    iproute2
+  sed -i 's%<property name="ThemeName" type="string" value="Xfce"/>%<property name="ThemeName" type="string" value="Raleigh"/>%' \
+    /etc/xdg/xfce4/xfconf/xfce-perchannel-xml/xsettings.xml
+EOF
 
 # Disable accessibility
 ENV NO_AT_BRIDGE=1

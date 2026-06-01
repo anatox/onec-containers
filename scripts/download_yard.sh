@@ -8,12 +8,12 @@ installer_type=$4
 
 if [ "$installer_type" = "edt" ]; then
     FOLDER_NAME="DevelopmentTools10"
-    DOWNLOADS_PATH=/tmp/downloads/${FOLDER_NAME}/${EDT_VERSION}
+    DOWNLOADS_PATH=/var/cache/yard/${FOLDER_NAME}/${EDT_VERSION}
 else
     ONEC_MAJOR_VER=$(echo "$ONEC_VERSION" | cut -d'.' -f1,2 | tr -d '.')
 
     FOLDER_NAME="Platform${ONEC_MAJOR_VER}"
-    DOWNLOADS_PATH=/tmp/downloads/${FOLDER_NAME}/${ONEC_VERSION}
+    DOWNLOADS_PATH=/var/cache/yard/${FOLDER_NAME}/${ONEC_VERSION}
 fi
 
 # Преобразование версии для различных целей
@@ -129,7 +129,7 @@ download_distr() {
   yard releases -u $ONEC_USERNAME -p $ONEC_PASSWORD get \
     --app-filter "$APP_FILTER" \
     --version-filter $ESCAPED_VERSION \
-    --path /tmp/downloads \
+    --path /var/cache/yard \
     --distr-filter "$distr_filter" \
     --download-limit 1
 }

@@ -1,0 +1,61 @@
+name: Build server
+
+on:
+  workflow_call:
+    inputs:
+      build_enabled:
+        type: boolean
+        default: true
+    secrets:
+      ONEC_USERNAME:
+        required: true
+      ONEC_PASSWORD:
+        required: true
+  workflow_dispatch:
+    inputs:
+      publish:
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build:
+    if: github.event_name == 'workflow_dispatch' || inputs.build_enabled
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: ./.github/actions/pre-build
+
+      - name: Build image (oscript-downloader)
+        id: build-oscript-downloader
+        uses: ./.github/actions/build-image
+        with:
+          image_name: oscript-downloader
+          image_version: latest
+          image_desc: OneScript downloader
+          containerfile: oscript/Containerfile
+          build_args: |
+            BASE_IMAGE=ubuntu
+            BASE_TAG=24.04
+            ONESCRIPT_VERSION=2.0.2
+            ONESCRIPT_PACKAGES=yard
+          is_default_branch: ${{ github.ref == 'refs/heads/main' }}
+
+      - name: Build image (onec-server)
+        id: build-server
+        uses: ./.github/actions/build-image
+        with:
+          image_name: onec-server
+          image_version: '8.5.1.1343'
+          image_desc: 1C:Enterprise server
+          containerfile: server/Containerfile
+          build_args: |
+            ONEC_USERNAME=${{ secrets.ONEC_USERNAME }}
+            ONEC_PASSWORD=${{ secrets.ONEC_PASSWORD }}
+            ONEC_VERSION=8.5.1.1343
+          is_default_branch: ${{ github.ref == 'refs/heads/main' }}
+          publish: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.publish) || 'false' }}

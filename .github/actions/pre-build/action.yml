@@ -1,0 +1,18 @@
+name: Pre-build
+description: Common build prerequisites — free disk space, Docker login, cosign install
+
+runs:
+  using: composite
+  steps:
+    - name: Maximize build space
+      uses: jlumbroso/free-disk-space@main
+
+    - name: Docker login
+      uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ github.token }}
+
+    - name: Install Cosign
+      uses: sigstore/cosign-installer@d7543c93d881b35a8faa02e8e3605f69b7a1ce62

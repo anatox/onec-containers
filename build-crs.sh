@@ -1,49 +1,32 @@
 #!/usr/bin/env bash
 set -eo pipefail
 
-if [ -n "${DOCKER_LOGIN}" ] && [ -n "${DOCKER_PASSWORD}" ] && [ -n "${DOCKER_REGISTRY_URL}" ]; then
-    if ! docker login -u "${DOCKER_LOGIN}" -p "${DOCKER_PASSWORD}" "${DOCKER_REGISTRY_URL}"; then
-        echo "Docker login failed"
-        exit 1
-    fi
-else
-    echo "Skipping Docker login due to missing credentials"
-fi
 
-if [ "${DOCKER_SYSTEM_PRUNE}" = 'true' ] ; then
-    docker system prune -af
-fi
-
-last_arg='.'
+last_args=(.)
 if [ "${NO_CACHE}" = 'true' ] ; then
-    last_arg='--no-cache .'
+    last_args=(--no-cache .)
 fi
 
 docker build \
     --pull \
-    --build-arg DOCKER_REGISTRY_URL=$DOCKER_REGISTRY_URL \
-    --build-arg ONEC_USERNAME=$ONEC_USERNAME \
-    --build-arg ONEC_PASSWORD=$ONEC_PASSWORD \
-    --build-arg ONEC_VERSION=$ONEC_VERSION \
-    -t ${DOCKER_REGISTRY_URL:+"$DOCKER_REGISTRY_URL/"}crs:$ONEC_VERSION \
-    -f crs/Dockerfile \
-    $last_arg
-
-if [[ -n "$DOCKER_REGISTRY_URL" ]]; then
-  docker push $DOCKER_REGISTRY_URL/crs:$ONEC_VERSION
-else
-  echo "DOCKER_REGISTRY_URL not set, skipping docker push."
-fi
+    --build-arg "ONEC_USERNAME=$ONEC_USERNAME" \
+    --build-arg "ONEC_PASSWORD=$ONEC_PASSWORD" \
+    --build-arg "ONEC_VERSION=$ONEC_VERSION" \
+    -t localhost/crs:"$ONEC_VERSION" \
+    -f crs/Containerfile \
+    "${last_args[@]}"
 
 docker build \
-    --build-arg DOCKER_REGISTRY_URL=$DOCKER_REGISTRY_URL \
-    --build-arg ONEC_VERSION=$ONEC_VERSION \
-    -t ${DOCKER_REGISTRY_URL:+"$DOCKER_REGISTRY_URL/"}crs-apache:$ONEC_VERSION \
-    -f crs-apache/Dockerfile \
-    $last_arg
+    --build-arg "ONEC_VERSION=$ONEC_VERSION" \
+    -t localhost/crs-apache:"$ONEC_VERSION" \
+    -f crs-apache/Containerfile \
+    "${last_args[@]}"
 
-if [[ -n "$DOCKER_REGISTRY_URL" ]]; then
-  docker push $DOCKER_REGISTRY_URL/crs-apache:$ONEC_VERSION
+if [[ "$PUSH" = "true" && -n "$DOCKER_REGISTRY_URL" ]]; then
+    docker tag localhost/crs:"$ONEC_VERSION" "$DOCKER_REGISTRY_URL/crs:$ONEC_VERSION"
+    docker push "$DOCKER_REGISTRY_URL/crs:$ONEC_VERSION"
+    docker tag localhost/crs-apache:"$ONEC_VERSION" "$DOCKER_REGISTRY_URL/crs-apache:$ONEC_VERSION"
+    docker push "$DOCKER_REGISTRY_URL/crs-apache:$ONEC_VERSION"
 else
-  echo "DOCKER_REGISTRY_URL not set, skipping docker push."
+    echo "PUSH not enabled or DOCKER_REGISTRY_URL not set, skipping push."
 fi

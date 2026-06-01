@@ -27,6 +27,17 @@
   - [vanessa-runner](#vanessa-runner)
   - [EDT](#edt)
   - [Исполнитель](#исполнитель)
+  - [Локальное тестирование CI (act)](#локальное-тестирование-ci-act)
+    - [Установка](#установка)
+    - [Запуск отдельной задачи](#запуск-отдельной-задачи)
+    - [Параметры](#параметры)
+    - [Публикация образов](#публикация-образов)
+    - [Известные особенности](#известные-особенности)
+  - [Toolbox-образы для distrobox](#toolbox-образы-для-distrobox)
+    - [Сборка CI (GitHub Actions)](#сборка-ci-github-actions)
+    - [Локальная отладочная сборка client-toolbox](#локальная-отладочная-сборка-client-toolbox)
+    - [Использование с distrobox](#использование-с-distrobox)
+    - [Проверка подписи образа](#проверка-подписи-образа)
 
 ## Использование
 
@@ -43,12 +54,13 @@ $ cp .onec.env.example .onec.env
 :: для Windows
 copy .onec.env.bat.example env.bat
 ```
-
+W
 Скорректируйте файл `.onec.env` в соответствии со своим окружением:
 
 - ONEC_USERNAME - учётная запись на [releases.1c.ru](https://releases.1c.ru)
 - ONEC_PASSWORD - пароль для учётной записи на [releases.1c.ru](https://releases.1c.ru)
-- ONEC_VERSION - версия платформы 1С:Преприятия 8.3, которая будет в образе
+- ONEC_VERSION - версия платформы 1С:Предприятия 8.3, которая будет в образе
+- ONESCRIPT_VERSION - версия образа `OneScript` для сборки `oscript-downloader`
 - EDT_VERSION - версия EDT. Обязательно заполнять только при сборке образов с EDT или при использовании замеров покрытия (см. `COVERAGE41C_VERSION`)
 - OPENJDK_VERSION - версия JDK (temurin)
 - DOCKER_REGISTRY_URL - Адрес Docker-registry в котором будут храниться образы
@@ -72,7 +84,7 @@ env.bat
 
 ## Как сбилдить образы
 
-:point_up: Запустите последовательно скрипты для сборки образов.
+:point_up: Запустите последовательно скрипты для сборки образов. Для публикации в реестр передайте `PUSH=true DOCKER_REGISTRY_URL=<registry>`.
 
 1. Если вам нужны образы для использования в docker-swarm:
 
@@ -111,10 +123,11 @@ env.bat
 [(Наверх)](#оглавление)
 
 ```bash
-docker build --build-arg ONEC_USERNAME=${ONEC_USERNAME} \
+docker buildx build --load \
+  --build-arg ONEC_USERNAME=${ONEC_USERNAME} \
   --build-arg ONEC_PASSWORD=${ONEC_PASSWORD} \
   --build-arg ONEC_VERSION=${ONEC_VERSION} \
-  -t ${DOCKER_REGISTRY_URL}/onec-server:${ONEC_VERSION} \
+  -t localhost/onec-server:${ONEC_VERSION} \
   -f server/Dockerfile .
 ```
 
@@ -123,11 +136,12 @@ docker build --build-arg ONEC_USERNAME=${ONEC_USERNAME} \
 [(Наверх)](#оглавление)
 
 ```bash
-docker build --build-arg ONEC_USERNAME=${ONEC_USERNAME} \
+docker buildx build --load \
+  --build-arg ONEC_USERNAME=${ONEC_USERNAME} \
   --build-arg ONEC_PASSWORD=${ONEC_PASSWORD} \
   --build-arg ONEC_VERSION=${ONEC_VERSION} \
   --build-arg nls_enabled=true \
-  -t ${DOCKER_REGISTRY_URL}/onec-server-nls:${ONEC_VERSION} \
+  -t localhost/onec-server-nls:${ONEC_VERSION} \
   -f server/Dockerfile .
 ```
 
@@ -136,10 +150,11 @@ docker build --build-arg ONEC_USERNAME=${ONEC_USERNAME} \
 [(Наверх)](#оглавление)
 
 ```bash
-docker build --build-arg ONEC_USERNAME=${ONEC_USERNAME} \
+docker buildx build --load \
+  --build-arg ONEC_USERNAME=${ONEC_USERNAME} \
   --build-arg ONEC_PASSWORD=${ONEC_PASSWORD} \
   --build-arg ONEC_VERSION=${ONEC_VERSION} \
-  -t ${DOCKER_REGISTRY_URL}/onec-client:${ONEC_VERSION} \
+  -t localhost/onec-client:${ONEC_VERSION} \
   -f client/Dockerfile .
 ```
 
@@ -148,9 +163,11 @@ docker build --build-arg ONEC_USERNAME=${ONEC_USERNAME} \
 [(Наверх)](#оглавление)
 
 ```bash
-docker build --build-arg DOCKER_REGISTRY_URL=${DOCKER_REGISTRY_URL} \
-  --build-arg ONEC_VERSION=${ONEC_VERSION} \
-  -t ${DOCKER_REGISTRY_URL}/onec-client-vnc:${ONEC_VERSION} \
+# Предварительно соберите onec-client и onec-client-s6 (см. build-base-*-jenkins-agent.sh)
+docker buildx build --load \
+  --build-arg BASE_IMAGE=localhost/onec-client-s6 \
+  --build-arg BASE_TAG=${ONEC_VERSION} \
+  -t localhost/onec-client-vnc:${ONEC_VERSION} \
   -f client-vnc/Dockerfile .
 ```
 
@@ -159,11 +176,12 @@ docker build --build-arg DOCKER_REGISTRY_URL=${DOCKER_REGISTRY_URL} \
 [(Наверх)](#оглавление)
 
 ```bash
-docker build --build-arg ONEC_USERNAME=${ONEC_USERNAME} \
+docker buildx build --load \
+  --build-arg ONEC_USERNAME=${ONEC_USERNAME} \
   --build-arg ONEC_PASSWORD=${ONEC_PASSWORD} \
   --build-arg ONEC_VERSION=${ONEC_VERSION} \
   --build-arg nls_enabled=true \
-  -t ${DOCKER_REGISTRY_URL}/onec-client-nls:${ONEC_VERSION} \
+  -t localhost/onec-client-nls:${ONEC_VERSION} \
   -f client/Dockerfile .
 ```
 
@@ -172,10 +190,11 @@ docker build --build-arg ONEC_USERNAME=${ONEC_USERNAME} \
 [(Наверх)](#оглавление)
 
 ```bash
-docker build --build-arg ONEC_USERNAME=${ONEC_USERNAME} \
+docker buildx build --load \
+  --build-arg ONEC_USERNAME=${ONEC_USERNAME} \
   --build-arg ONEC_PASSWORD=${ONEC_PASSWORD} \
   --build-arg ONEC_VERSION=${ONEC_VERSION} \
-  -t ${DOCKER_REGISTRY_URL}/onec-thin-client:${ONEC_VERSION} \
+  -t localhost/onec-thin-client:${ONEC_VERSION} \
   -f thin-client/Dockerfile .
 ```
 
@@ -184,11 +203,12 @@ docker build --build-arg ONEC_USERNAME=${ONEC_USERNAME} \
 [(Наверх)](#оглавление)
 
 ```bash
-docker build --build-arg ONEC_USERNAME=${ONEC_USERNAME} \
+docker buildx build --load \
+  --build-arg ONEC_USERNAME=${ONEC_USERNAME} \
   --build-arg ONEC_PASSWORD=${ONEC_PASSWORD} \
   --build-arg ONEC_VERSION=${ONEC_VERSION} \
   --build-arg nls_enabled=true \
-  -t ${DOCKER_REGISTRY_URL}/onec-thin-client-nls:${ONEC_VERSION} \
+  -t localhost/onec-thin-client-nls:${ONEC_VERSION} \
   -f thin-client/Dockerfile .
 ```
 
@@ -197,10 +217,11 @@ docker build --build-arg ONEC_USERNAME=${ONEC_USERNAME} \
 [(Наверх)](#оглавление)
 
 ```bash
-docker build --build-arg ONEC_USERNAME=${ONEC_USERNAME} \
+docker buildx build --load \
+  --build-arg ONEC_USERNAME=${ONEC_USERNAME} \
   --build-arg ONEC_PASSWORD=${ONEC_PASSWORD} \
   --build-arg ONEC_VERSION=${ONEC_VERSION} \
-  -t ${DOCKER_REGISTRY_URL}/onec-crs:${ONEC_VERSION} \
+  -t localhost/onec-crs:${ONEC_VERSION} \
   -f crs/Dockerfile .
 ```
 
@@ -209,9 +230,9 @@ docker build --build-arg ONEC_USERNAME=${ONEC_USERNAME} \
 [(Наверх)](#оглавление)
 
 ```bash
-docker build --build-arg DOCKER_REGISTRY_URL=${DOCKER_REGISTRY_URL} \
+docker buildx build --load \
   --build-arg ONEC_VERSION=${ONEC_VERSION} \
-  -t ${DOCKER_REGISTRY_URL}/onec-rac-gui:${ONEC_VERSION}-1.0.1 \
+  -t localhost/onec-rac-gui:${ONEC_VERSION}-1.0.1 \
   -f rac-gui/Dockerfile .
 ```
 
@@ -220,9 +241,9 @@ docker build --build-arg DOCKER_REGISTRY_URL=${DOCKER_REGISTRY_URL} \
 [(Наверх)](#оглавление)
 
 ```bash
-docker build --build-arg DOCKER_REGISTRY_URL=${DOCKER_REGISTRY_URL} \
+docker buildx build --load \
   --build-arg ONEC_VERSION=${ONEC_VERSION} \
-  -t ${DOCKER_REGISTRY_URL}/gitsync:3.0.0 \
+  -t localhost/gitsync:3.0.0 \
   -f gitsync/Dockerfile .
 ```
 
@@ -231,9 +252,8 @@ docker build --build-arg DOCKER_REGISTRY_URL=${DOCKER_REGISTRY_URL} \
 [(Наверх)](#оглавление)
 
 ```bash
-docker build --build-arg DOCKER_REGISTRY_URL=${DOCKER_REGISTRY_URL} \
-  --build-arg ONEC_VERSION=${ONEC_VERSION} \
-  -t ${DOCKER_REGISTRY_URL}/oscript:1.0.21 \
+docker buildx build --load \
+  -t localhost/oscript:latest \
   -f oscript/Dockerfile .
 ```
 
@@ -242,8 +262,8 @@ docker build --build-arg DOCKER_REGISTRY_URL=${DOCKER_REGISTRY_URL} \
 [(Наверх)](#оглавление)
 
 ```bash
-docker build --build-arg DOCKER_REGISTRY_URL=${DOCKER_REGISTRY_URL} \
-  -t ${DOCKER_REGISTRY_URL}/runner:1.7.0 \
+docker buildx build --load \
+  -t localhost/runner:1.7.0 \
   -f vanessa-runner/Dockerfile .
 ```
 
@@ -252,10 +272,11 @@ docker build --build-arg DOCKER_REGISTRY_URL=${DOCKER_REGISTRY_URL} \
 [(Наверх)](#оглавление)
 
 ```bash
-docker build --build-arg ONEC_USERNAME=${ONEC_USERNAME} \
+docker buildx build --load \
+    --build-arg ONEC_USERNAME=${ONEC_USERNAME} \
     --build-arg ONEC_PASSWORD=${ONEC_PASSWORD} \
     --build-arg EDT_VERSION=${EDT_VERSION} \
-    -t ${DOCKER_REGISTRY_URL}/edt:${EDT_VERSION} \
+    -t localhost/edt:${EDT_VERSION} \
     -f edt/Dockerfile .
 ```
 
@@ -268,3 +289,136 @@ docker build --build-arg ONEC_USERNAME=${ONEC_USERNAME} \
 ```
 
 Собирать обязательно через запуск скрипта, так как в нём реализован безопасный проброс секретов в окружение сборки
+
+## Локальное тестирование CI (act)
+
+[(Наверх)](#оглавление)
+
+Для локального тестирования GitHub Actions используется [nektos/act](https://github.com/nektos/act).
+
+### Установка
+
+```bash
+brew install act
+```
+
+### Запуск отдельной задачи
+
+```bash
+# Экспорт переменных окружения (включая ONEC_USERNAME, ONEC_PASSWORD)
+source .envrc
+
+# Сборка одного образа (например, server)
+act -j server push \
+  --directory . \
+  -P ubuntu-latest=catthehacker/ubuntu:act-latest \
+  --container-architecture linux/amd64 \
+  --secret ONEC_USERNAME="$ONEC_USERNAME" \
+  --secret ONEC_PASSWORD="$ONEC_PASSWORD" \
+  --secret GITHUB_TOKEN="${DOCKER_PASSWORD}" \
+  --concurrent-jobs 1
+```
+
+### Параметры
+
+| Параметр | Назначение |
+|---|---|
+| `-j <job>` | Имя задачи из `build.yml`: `server`, `executor`, `edt-swarm-agent`, `edt-k8s-agent`, `oscript-swarm-agent`, `oscript-k8s-agent`, `base-swarm-coverage-agent`, `base-k8s-coverage-agent` |
+| `-P ubuntu-latest=...` | Образ-раннер (medium-вариант совместим с большинством actions) |
+| `--container-architecture linux/amd64` | Архитектура контейнера (требуется для совместимости со сборочными образами) |
+| `--concurrent-jobs 1` | Обход бага конкурентности в act < 0.2.89 |
+| `--secret GITHUB_TOKEN=...` | Токен для `docker login` в ghcr.io при пуше |
+| `-n` | Dry-run: только проверка валидности workflow без реальной сборки |
+
+### Публикация образов
+
+При симуляции события `push` workflow публикует образы в реестр. Чтобы собрать только локально без пуша, используйте `pull_request`:
+
+```bash
+act -j server pull_request \
+  --directory . \
+  -P ubuntu-latest=catthehacker/ubuntu:act-latest \
+  --container-architecture linux/amd64 \
+  --secret ONEC_USERNAME="$ONEC_USERNAME" \
+  --secret ONEC_PASSWORD="$ONEC_PASSWORD" \
+  --concurrent-jobs 1
+```
+
+### Известные особенности
+
+- **act v0.2.88**: обязателен `--concurrent-jobs 1` из-за бага `concurrent map iteration and map write`
+- **Artifacts**: предупреждение `Unable to get the ACTIONS_RUNTIME_TOKEN env variable` безвредно — влияет только на загрузку build-записей в GitHub
+- **Secrets in ARG**: Dockerfile использует `ARG ONEC_PASSWORD`, что вызывает предупреждение Docker о секретах в build-args
+- **free-disk-space**: pre-build шаг пытается очистить диск через `apt-get remove` и `docker image prune` — в контейнере act это может занимать лишнее время
+
+## Toolbox-образы для distrobox
+
+[(Наверх)](#оглавление)
+
+Образы `edt-toolbox` и `client-toolbox` предназначены для использования с [distrobox](https://distrobox.it/) или [toolbx](https://containertoolbx.org/).
+Они включают те же компоненты, что и обычные образы EDT/клиент, но построены на базе `quay.io/toolbx/ubuntu-toolbox` и содержат shim-ссылки для прозрачного вызова `docker`, `podman`, `flatpak` с хоста.
+
+### Сборка CI (GitHub Actions)
+
+Toolbox-образы интегрированы в общий модульный пайплайн `.github/workflows/build.yml` и управляются отдельными reusable workflows:
+
+- `.github/workflows/build-client-toolbox.yml` — сборка `client-toolbox`
+- `.github/workflows/build-edt-toolbox.yml` — сборка `edt-toolbox`
+
+Каждый workflow собирает цепочку `oscript-downloader → toolbox-образ` через композитный action `build-image`. Публикация в `ghcr.io/<owner>/` и подпись cosign опциональны (управляются переменной `publish`).
+
+Включение/выключение сборки контролируется переменными репозитория:
+
+| Переменная | Назначение |
+|---|---|
+| `BUILD_CLIENT_TOOLBOX` | `!= 'false'` включает сборку client-toolbox |
+| `BUILD_EDT_TOOLBOX` | `!= 'false'` включает сборку edt-toolbox |
+
+Необходимые секреты репозитория:
+
+| Секрет | Описание |
+|---|---|
+| `ONEC_USERNAME` | Логин на releases.1c.ru |
+| `ONEC_PASSWORD` | Пароль на releases.1c.ru |
+
+Необходимые переменные репозитория (Variables — опционально, используются defaults):
+
+| Переменная | По умолчанию | Назначение |
+|---|---|---|
+| `ONEC_VERSION` | `8.5.1.1343` | Версия платформы 1С для client-toolbox |
+| `EDT_VERSION` | `2025.2.6` | Версия EDT для edt-toolbox |
+| `OPENJDK_VERSION` | `17` | Версия JDK для стадии установки EDT |
+
+### Локальная сборка
+
+```bash
+# Загрузите переменные окружения
+source .envrc
+
+# Собрать client-toolbox
+./build-client-toolbox.sh
+
+# Собрать edt-toolbox
+./build-edt-toolbox.sh
+
+# Сборка + пуш в реестр
+PUSH=true DOCKER_REGISTRY_URL=ghcr.io/<owner> ./build-edt-toolbox.sh
+```
+
+Для использования с distrobox после сборки через Docker:
+
+```bash
+# Скопировать образ из Docker-демона в хранилище Podman
+podman pull docker-daemon:localhost/edt-toolbox:latest
+
+# Создать и войти в контейнер
+distrobox create --image localhost/edt-toolbox:latest --name edt-toolbox
+distrobox enter edt-toolbox
+```
+
+### Проверка подписи образа
+
+```bash
+cosign verify --key cosign.pub ghcr.io/<owner>/edt-toolbox:latest
+cosign verify --key cosign.pub ghcr.io/<owner>/client-toolbox:latest
+```

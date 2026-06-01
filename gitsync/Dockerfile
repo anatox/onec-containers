@@ -1,44 +1,32 @@
-ARG DOCKER_REGISTRY_URL
+ARG DOCKER_REGISTRY_URL=localhost
 ARG ONEC_VERSION
-FROM ${DOCKER_REGISTRY_URL:+"$DOCKER_REGISTRY_URL/"}onec-client:${ONEC_VERSION} AS base
+FROM ${DOCKER_REGISTRY_URL:+"$DOCKER_REGISTRY_URL"/}onec-client:${ONEC_VERSION} AS base
 
-FROM mono:5.20-slim
+FROM oscript:2.0.2
 LABEL maintainer="Anton Kvashenkin <anton.jugatsu@gmail.com> (@jugatsu)"
 
-ARG gitsync_ver=3.0.0
+ARG gitsync_ver=3.7.3
 
 COPY --from=base /opt /opt
 
-RUN echo "deb http://http.debian.net/debian/ stretch main contrib non-free" > /etc/apt/sources.list.d/stretch.list \
-  && echo "deb http://http.debian.net/debian/ stretch-updates main contrib non-free" >> > /etc/apt/sources.list.d/stretch-updates.list \
-  && echo "deb http://security.debian.org/ stretch/updates main contrib non-free" >> > /etc/apt/sources.list.d/stretch-security-updates.list \
-  && echo ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula select true | debconf-set-selections \
-  && apt-get update \
-  && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-      ca-certificates \
-      git \
-      locales \
-      libwebkitgtk-3.0-0 \
-      ttf-mscorefonts-installer \
-      libfontconfig1 \
-      libgsf-1-114 \
-      libglib2.0-0 \
-      libodbc1 \
-      libmagickwand-6.q16-3 \
-      libmono-system-runtime-serialization4.0-cil \
-      dbus-x11 \
-  && rm -rf \
-    /etc/apt/sources.list.d/stretch.list \
-    /etc/apt/sources.list.d/stretch-updates.list \
-    /etc/apt/sources.list.d/stretch-security-updates.list \
-  && apt-get update \
-  && rm -rf  \
-    /var/lib/apt/lists/* \
-    /var/cache/debconf \
-  && localedef -i ru_RU -c -f UTF-8 -A /usr/share/locale/locale.alias ru_RU.UTF-8
-ENV LANG ru_RU.UTF-8
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt/lists,sharing=locked <<EOF
+  set -eux
+  echo "deb http://http.debian.net/debian/ stretch main contrib non-free" > /etc/apt/sources.list.d/stretch.list
+  echo "deb http://http.debian.net/debian/ stretch-updates main contrib non-free" >> /etc/apt/sources.list.d/stretch-updates.list
+  echo "deb http://security.debian.org/ stretch/updates main contrib non-free" >> /etc/apt/sources.list.d/stretch-security-updates.list
+  echo ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula select true | debconf-set-selections
+  apt-get update
+  DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+    dbus-x11
+  locale-gen ru_RU.UTF-8
+EOF
+ENV LANG=ru_RU.UTF-8
 
-ADD https://github.com/oscript-library/gitsync/releases/download/$gitsync_ver/gitsync.exe /gitsync.exe
+RUN <<EOF
+  set -eux
+  opm install gitsync@${gitsync_ver}
+EOF
 
-ENTRYPOINT ["mono", "gitsync.exe"]
+ENTRYPOINT ["gitsync"]
 CMD ["usage"]

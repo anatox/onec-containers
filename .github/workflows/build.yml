@@ -1,95 +1,77 @@
-name: Build Docker Images
+name: Build Container Images
 
 on:
-
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
-  workflow_run:
-    workflows: ["Pre-build checks"]
-    types:
-      - completed
+    inputs:
+      publish:
+        description: Push images to GHCR and sign them
+        type: boolean
+        default: false
 
 permissions:
-  checks: write
   contents: read
+  packages: write
 
 jobs:
-  build:
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        script: [ 'build-base-k8s-jenkins-agent.sh', 'build-base-k8s-jenkins-coverage-agent.sh', 'build-base-swarm-jenkins-agent.sh', 'build-base-swarm-jenkins-coverage-agent.sh', 'build-edt-swarm-agent.sh', 'build-edt-k8s-agent.sh', 'build-oscript-k8s-agent.sh', 'build-oscript-swarm-agent.sh', 'build-server.sh', 'build-executor.sh']
+  base-swarm-coverage-agent:
+    uses: ./.github/workflows/build-base-swarm-coverage-agent.yml
+    with:
+      build_enabled: ${{ vars.BUILD_BASE_SWARM_COVERAGE_AGENT != 'false' }}
+    secrets: inherit
 
-    steps:
-    - name: Maximize build space
-      uses: jlumbroso/free-disk-space@main 
-    - name: Checkout repository
-      uses: actions/checkout@v6
-      with:
-        fetch-depth: 0
-        repository: ${{ github.event.workflow_run.head_repository.full_name }}
-        ref: ${{ github.event.workflow_run.head_sha }}
+  base-k8s-coverage-agent:
+    uses: ./.github/workflows/build-base-k8s-coverage-agent.yml
+    with:
+      build_enabled: ${{ vars.BUILD_BASE_K8S_COVERAGE_AGENT != 'false' }}
+    secrets: inherit
 
-    - name: Create Check Run (Started)
-      uses: actions/github-script@v9
-      id: create_check_run
-      with:
-        script: |
-          const { data: checkRun } = await github.rest.checks.create({
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            name: 'Build Workflow - ${{ matrix.script }}',
-            head_sha: '${{ github.event.workflow_run.head_sha }}',
-            status: 'in_progress',
-            details_url: '${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}',
-            output: {
-              title: 'Build Started',
-              summary: 'Build has started.'
-            }
-          });
-          core.setOutput('check_run_id', checkRun.id);
+  oscript-swarm-agent:
+    uses: ./.github/workflows/build-oscript-swarm-agent.yml
+    with:
+      build_enabled: ${{ vars.BUILD_OSCRIPT_SWARM_AGENT != 'false' }}
 
-    - name: Set up QEMU
-      uses: docker/setup-qemu-action@v4
+  oscript-k8s-agent:
+    uses: ./.github/workflows/build-oscript-k8s-agent.yml
+    with:
+      build_enabled: ${{ vars.BUILD_OSCRIPT_K8S_AGENT != 'false' }}
 
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v4
+  edt-swarm-agent:
+    uses: ./.github/workflows/build-edt-swarm-agent.yml
+    with:
+      build_enabled: ${{ vars.BUILD_EDT_SWARM_AGENT != 'false' }}
+    secrets: inherit
 
-    - name: Build Docker images
-      env:
-        DOCKER_REGISTRY_URL: 'localhost:5000'
-        DOCKER_LOGIN: ""
-        DOCKER_PASSWORD: ""
-        ONEC_USERNAME: ${{ secrets.ONEC_USERNAME}}
-        ONEC_PASSWORD: ${{ secrets.ONEC_PASSWORD}}
-        DEV1C_EXECUTOR_API_KEY: ${{secrets.DEV1C_EXECUTOR_API_KEY}}
-        ONEC_VERSION: '8.3.24.1624'
-        EDT_VERSION: '2023.3.6'
-        OPENJDK_VERSION: '17'
-        EXECUTOR_VERSION: '7.0.3.3'
-        COVERAGE41C_VERSION: '2.7.3'
-        DOCKER_SYSTEM_PRUNE: 'false'
-      run: |
-        docker system prune -af
-        docker run -d -p 5000:5000 --name registry registry:2
-        ./${{ matrix.script }}
-        
-    - name: Update PR Check Status (Completed)
-      if: always()
-      uses: actions/github-script@v9
-      with:
-        script: |
-          const conclusion = '${{ job.status }}' === 'success' ? 'success' : 'failure';
-          await github.rest.checks.update({
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            check_run_id: ${{ steps.create_check_run.outputs.check_run_id }},
-            status: 'completed',
-            conclusion,
-            completed_at: new Date().toISOString(),
-            output: {
-              title: 'Build ' + (conclusion === 'success' ? 'Succeeded' : 'Failed'),
-              summary: `Workflow for script '${{ matrix.script }}' completed with conclusion: ${conclusion}`
-            }
-          });
+  edt-k8s-agent:
+    uses: ./.github/workflows/build-edt-k8s-agent.yml
+    with:
+      build_enabled: ${{ vars.BUILD_EDT_K8S_AGENT != 'false' }}
+    secrets: inherit
+
+  server:
+    uses: ./.github/workflows/build-server.yml
+    with:
+      build_enabled: ${{ vars.BUILD_SERVER != 'false' }}
+    secrets: inherit
+
+  executor:
+    uses: ./.github/workflows/build-executor.yml
+    with:
+      build_enabled: ${{ vars.BUILD_EXECUTOR != 'false' }}
+    secrets:
+      DEV1C_EXECUTOR_API_KEY: ${{ secrets.DEV1C_EXECUTOR_API_KEY }}
+
+  client-toolbox:
+    uses: ./.github/workflows/build-client-toolbox.yml
+    with:
+      build_enabled: ${{ vars.BUILD_CLIENT_TOOLBOX != 'false' }}
+    secrets: inherit
+
+  edt-toolbox:
+    uses: ./.github/workflows/build-edt-toolbox.yml
+    with:
+      build_enabled: ${{ vars.BUILD_EDT_TOOLBOX != 'false' }}
+    secrets: inherit

@@ -1,0 +1,44 @@
+name: Build executor
+
+on:
+  workflow_call:
+    inputs:
+      build_enabled:
+        type: boolean
+        default: true
+    secrets:
+      DEV1C_EXECUTOR_API_KEY:
+        required: true
+  workflow_dispatch:
+    inputs:
+      publish:
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build:
+    if: github.event_name == 'workflow_dispatch' || inputs.build_enabled
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: ./.github/actions/pre-build
+
+      - name: Build image (executor)
+        id: build-executor
+        uses: ./.github/actions/build-image
+        with:
+          image_name: executor
+          image_version: '7.0.3.3'
+          image_desc: 1C DevOps Executor
+          containerfile: executor/Containerfile
+          secrets: |
+            dev1c_executor_api_key=${{ secrets.DEV1C_EXECUTOR_API_KEY }}
+          build_args: |
+            EXECUTOR_VERSION=7.0.3.3
+          is_default_branch: ${{ github.ref == 'refs/heads/main' }}
+          publish: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.publish) || 'false' }}

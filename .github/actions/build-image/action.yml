@@ -1,0 +1,102 @@
+name: Build Image
+description: Metadata + docker buildx build + push+sign for one container image
+
+inputs:
+  image_name:
+    required: true
+    description: Image name (without registry prefix)
+  image_version:
+    required: true
+    description: Image version (semver tag)
+  image_desc:
+    default: ''
+    description: Image description for OCI labels
+  containerfile:
+    required: true
+    description: Path to Containerfile (e.g. client/Containerfile)
+  build_args:
+    default: ''
+    description: Multiline build-arg string
+  secrets:
+    default: ''
+    description: Multiline id=value secrets (used with RUN --mount=type=secret)
+  is_default_branch:
+    default: 'false'
+    description: Whether this is the default branch (enables 'latest' tag)
+  publish:
+    default: 'false'
+    description: Push to GHCR and sign if true
+  cosign_private_key:
+    default: ''
+    description: Cosign private key for signing (required when publish is true)
+
+outputs:
+  image:
+    value: ${{ inputs.image_name }}
+    description: Image name (without registry prefix)
+  image-with-tag:
+    value: ${{ steps.image-ref.outputs.image-with-tag }}
+    description: Image name with first tag
+  digest:
+    value: ${{ steps.build.outputs.digest }}
+    description: Built image digest
+
+runs:
+  using: composite
+  steps:
+    - id: meta
+      uses: docker/metadata-action@c1e51972afc2121e065aed6d45c65596fe445f3f
+      with:
+        images: ghcr.io/${{ github.repository_owner }}/${{ inputs.image_name }}
+        tags: |
+          type=raw,value=${{ inputs.image_version }}
+          type=raw,value=latest,enable=${{ inputs.is_default_branch == 'true' }}
+          type=sha
+          type=ref,event=pr
+        labels: |
+          org.opencontainers.image.source=https://github.com/${{ github.repository_owner }}/${{ inputs.image_name }}/blob/${{ github.sha }}/${{ inputs.containerfile }}
+          org.opencontainers.image.title=${{ inputs.image_name }}
+          org.opencontainers.image.description=${{ inputs.image_desc }}
+
+    - uses: docker/setup-buildx-action@v4
+      with:
+        driver: docker
+
+    - id: merged-build-args
+      shell: bash
+      run: |
+        {
+          echo "args<<_EOF_"
+          echo "DOCKER_REGISTRY_URL=ghcr.io/${{ github.repository_owner }}"
+          echo '${{ inputs.build_args }}'
+          echo "_EOF_"
+        } >> "$GITHUB_OUTPUT"
+
+    - id: build
+      uses: docker/build-push-action@v7
+      with:
+        context: .
+        file: ${{ inputs.containerfile }}
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        build-args: ${{ steps.merged-build-args.outputs.args }}
+        secrets: ${{ inputs.secrets }}
+        push: ${{ inputs.publish == 'true' && github.event_name != 'pull_request' }}
+        load: ${{ inputs.publish != 'true' || github.event_name == 'pull_request' }}
+        pull: false
+
+    - id: image-ref
+      shell: bash
+      run: |
+        FIRST_TAG=$(echo "${{ steps.meta.outputs.tags }}" | head -1 | tr -d '\n')
+        echo "image-with-tag=${FIRST_TAG}" >> "$GITHUB_OUTPUT"
+
+    - if: inputs.publish == 'true' && inputs.cosign_private_key != '' && github.event_name != 'pull_request'
+      name: Sign image
+      shell: bash
+      run: |
+        cosign sign -y --key env://COSIGN_PRIVATE_KEY \
+          "ghcr.io/${{ github.repository_owner }}/${{ inputs.image_name }}@${{ steps.build.outputs.digest }}"
+      env:
+        COSIGN_PRIVATE_KEY: ${{ inputs.cosign_private_key }}
+        COSIGN_EXPERIMENTAL: false

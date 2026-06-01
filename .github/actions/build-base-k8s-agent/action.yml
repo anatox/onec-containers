@@ -1,0 +1,152 @@
+name: Build base-k8s-agent
+description: Builds base Jenkins k8s agent image chain (oscript-downloader → client → s6 → vnc → oscript → jdk → test-utils → agent)
+
+inputs:
+  ONEC_USERNAME:
+    required: true
+    description: 1C portal username
+  ONEC_PASSWORD:
+    required: true
+    description: 1C portal password
+  ONEC_VERSION:
+    default: '8.5.1.1343'
+    description: 1C:Enterprise platform version
+  ONESCRIPT_VERSION:
+    default: '2.0.2'
+    description: OneScript version
+  OPENJDK_VERSION:
+    default: '17'
+    description: OpenJDK version
+  TEST_UTILS_EXTRA_PACKAGES:
+    default: ''
+    description: Extra test-utils packages
+  is_default_branch:
+    default: 'false'
+  publish:
+    default: 'false'
+
+outputs:
+  image:
+    value: ${{ steps.build-agent.outputs.image }}
+    description: Leaf image name (base-jenkins-agent)
+
+runs:
+  using: composite
+  steps:
+    - uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ github.token }}
+
+    - uses: sigstore/cosign-installer@d7543c93d881b35a8faa02e8e3605f69b7a1ce62
+
+    - name: Build image (oscript-downloader)
+      id: build-oscript-downloader
+      uses: ./.github/actions/build-image
+      with:
+        image_name: oscript-downloader
+        image_version: latest
+        image_desc: OneScript downloader
+        containerfile: oscript/Containerfile
+        build_args: |
+          BASE_IMAGE=ubuntu
+          BASE_TAG=24.04
+          ONESCRIPT_VERSION=${{ inputs.ONESCRIPT_VERSION }}
+          ONESCRIPT_PACKAGES=yard
+        is_default_branch: ${{ inputs.is_default_branch }}
+
+    - name: Build image (onec-client)
+      id: build-client
+      uses: ./.github/actions/build-image
+      with:
+        image_name: onec-client
+        image_version: ${{ inputs.ONEC_VERSION }}
+        image_desc: 1C:Enterprise client
+        containerfile: client/Containerfile
+        build_args: |
+          ONEC_USERNAME=${{ inputs.ONEC_USERNAME }}
+          ONEC_PASSWORD=${{ inputs.ONEC_PASSWORD }}
+          ONEC_VERSION=${{ inputs.ONEC_VERSION }}
+        is_default_branch: ${{ inputs.is_default_branch }}
+
+    - name: Build image (onec-client-s6)
+      id: build-client-s6
+      uses: ./.github/actions/build-image
+      with:
+        image_name: onec-client-s6
+        image_version: ${{ inputs.ONEC_VERSION }}
+        image_desc: 1C:Enterprise client + s6-overlay
+        containerfile: s6-overlay/Containerfile
+        build_args: |
+          BASE_IMAGE=ghcr.io/${{ github.repository_owner }}/${{ steps.build-client.outputs.image }}
+          BASE_TAG=${{ inputs.ONEC_VERSION }}
+        is_default_branch: ${{ inputs.is_default_branch }}
+
+    - name: Build image (onec-client-vnc)
+      id: build-client-vnc
+      uses: ./.github/actions/build-image
+      with:
+        image_name: onec-client-vnc
+        image_version: ${{ inputs.ONEC_VERSION }}
+        image_desc: 1C:Enterprise client + VNC
+        containerfile: client-vnc/Containerfile
+        build_args: |
+          BASE_IMAGE=ghcr.io/${{ github.repository_owner }}/${{ steps.build-client-s6.outputs.image }}
+          BASE_TAG=${{ inputs.ONEC_VERSION }}
+        is_default_branch: ${{ inputs.is_default_branch }}
+
+    - name: Build image (onec-client-vnc-oscript)
+      id: build-client-vnc-oscript
+      uses: ./.github/actions/build-image
+      with:
+        image_name: onec-client-vnc-oscript
+        image_version: ${{ inputs.ONEC_VERSION }}
+        image_desc: 1C:Enterprise client + VNC + OneScript
+        containerfile: oscript/Containerfile
+        build_args: |
+          BASE_IMAGE=ghcr.io/${{ github.repository_owner }}/${{ steps.build-client-vnc.outputs.image }}
+          BASE_TAG=${{ inputs.ONEC_VERSION }}
+        is_default_branch: ${{ inputs.is_default_branch }}
+
+    - name: Build image (onec-client-vnc-oscript-jdk)
+      id: build-client-vnc-oscript-jdk
+      uses: ./.github/actions/build-image
+      with:
+        image_name: onec-client-vnc-oscript-jdk
+        image_version: ${{ inputs.ONEC_VERSION }}
+        image_desc: 1C:Enterprise client + VNC + OneScript + JDK
+        containerfile: jdk/Containerfile
+        build_args: |
+          BASE_IMAGE=ghcr.io/${{ github.repository_owner }}/${{ steps.build-client-vnc-oscript.outputs.image }}
+          BASE_TAG=${{ inputs.ONEC_VERSION }}
+          OPENJDK_VERSION=${{ inputs.OPENJDK_VERSION }}
+        is_default_branch: ${{ inputs.is_default_branch }}
+
+    - name: Build image (onec-client-vnc-oscript-jdk-testutils)
+      id: build-client-vnc-oscript-jdk-testutils
+      uses: ./.github/actions/build-image
+      with:
+        image_name: onec-client-vnc-oscript-jdk-testutils
+        image_version: ${{ inputs.ONEC_VERSION }}
+        image_desc: 1C:Enterprise client + VNC + OneScript + JDK + test-utils
+        containerfile: test-utils/Containerfile
+        build_args: |
+          BASE_IMAGE=ghcr.io/${{ github.repository_owner }}/${{ steps.build-client-vnc-oscript-jdk.outputs.image }}
+          BASE_TAG=${{ inputs.ONEC_VERSION }}
+          TEST_UTILS_EXTRA_PACKAGES=${{ inputs.TEST_UTILS_EXTRA_PACKAGES }}
+        is_default_branch: ${{ inputs.is_default_branch }}
+
+    - name: Build image (base-jenkins-agent)
+      id: build-agent
+      uses: ./.github/actions/build-image
+      with:
+        image_name: base-jenkins-agent
+        image_version: ${{ inputs.ONEC_VERSION }}
+        image_desc: Base Jenkins k8s agent
+        containerfile: k8s-jenkins-agent/Containerfile
+        build_args: |
+          BASE_IMAGE=ghcr.io/${{ github.repository_owner }}/${{ steps.build-client-vnc-oscript-jdk-testutils.outputs.image }}
+          BASE_TAG=${{ inputs.ONEC_VERSION }}
+        is_default_branch: ${{ inputs.is_default_branch }}
+        publish: ${{ inputs.publish }}

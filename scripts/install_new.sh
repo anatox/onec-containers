@@ -83,7 +83,7 @@ install_from_run() {
 
 ONEC_MAJOR_VER=$(echo "$ONEC_VERSION" | cut -d'.' -f1,2 | tr -d '.')
 
-cd /tmp/downloads/Platform${ONEC_MAJOR_VER}/${ONEC_VERSION}
+cd /tmp/distr/Platform${ONEC_MAJOR_VER}/${ONEC_VERSION}
 
 # Определяем, есть ли .deb файлы
 if ls *.deb 1> /dev/null 2>&1; then

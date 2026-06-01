@@ -1,8 +1,9 @@
-# Используем базовый образ для скачивания
-ARG DOCKER_REGISTRY_URL
-ARG BASE_IMAGE
-ARG BASE_TAG
-FROM ${DOCKER_REGISTRY_URL}${DOCKER_REGISTRY_URL:+/}${BASE_IMAGE}:${BASE_TAG} AS downloader
+ARG DOCKER_REGISTRY_URL=localhost
+ARG BASE_IMAGE=ubuntu
+ARG BASE_TAG=24.04
+ARG INSTALLER_BASE_IMAGE=${BASE_IMAGE}
+ARG INSTALLER_BASE_TAG=${BASE_TAG}
+FROM ${DOCKER_REGISTRY_URL:+"$DOCKER_REGISTRY_URL"/}oscript-downloader:latest AS downloader
 
 # Копирование скрипта скачивания и локальных дистрибутивов
 COPY --chmod=755 ./scripts/download_yard.sh /download.sh
@@ -16,24 +17,32 @@ ARG ONEC_VERSION
 WORKDIR /tmp
 
 # Установка необходимых пакетов и генерация локали
-RUN apt-get update \
-  && apt-get install -y \
-          locales \
-          p7zip-rar \
-          p7zip-full \
-  && rm -rf /var/lib/apt/lists/* \
-  && locale-gen ru_RU.UTF-8 \
-  && localedef -i ru_RU -c -f UTF-8 -A /usr/share/locale/locale.alias ru_RU.UTF-8
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt/lists,sharing=locked <<EOF
+  set -eux
+  apt-get update
+  apt-get install -y \
+    locales \
+    p7zip-rar \
+    p7zip-full
+  locale-gen ru_RU.UTF-8
+EOF
 
 # Установка переменных окружения для корректной работы локали
-ENV LANG ru_RU.UTF-8
-ENV LANGUAGE ru_RU:ru
-ENV LC_ALL ru_RU.UTF-8
+ENV LANG=ru_RU.UTF-8
+ENV LANGUAGE=ru_RU:ru
+ENV LC_ALL=ru_RU.UTF-8
 
-RUN /download.sh "$ONEC_USERNAME" "$ONEC_PASSWORD" "$ONEC_VERSION" "client"
+RUN --mount=type=cache,target=/var/cache/yard,sharing=locked <<EOF
+  set -eux
+  /download.sh "$ONEC_USERNAME" "$ONEC_PASSWORD" "$ONEC_VERSION" "client"
+  ONEC_MAJOR_VER=$(echo "$ONEC_VERSION" | cut -d'.' -f1,2 | tr -d '.')
+  mkdir -p "/tmp/distr/Platform${ONEC_MAJOR_VER}/${ONEC_VERSION}"
+  cp -r "/var/cache/yard/Platform${ONEC_MAJOR_VER}/${ONEC_VERSION}"/* "/tmp/distr/Platform${ONEC_MAJOR_VER}/${ONEC_VERSION}"/
+EOF
 
 # Начало основной стадии сборки
-FROM ubuntu:20.04 AS base
+FROM ${INSTALLER_BASE_IMAGE}:${INSTALLER_BASE_TAG} AS installer
 
 # Копируем скрипты и файлы установки
 ARG ONEC_VERSION
@@ -44,30 +53,24 @@ ENV nls=$nls_enabled
 ENV installer_type=client
 
 # Установка gnupg и wget
-RUN set -e \
-  && apt-get update \
-  && apt-get install -y --no-install-recommends \
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt/lists,sharing=locked <<EOF
+  set -eux
+  apt-get update
+  apt-get install -y --no-install-recommends \
     gnupg \
     wget \
-    ca-certificates \
-  && mkdir -p -m 0755 /etc/apt/keyrings \
-  && apt-get clean \
-  && rm -rf /var/lib/apt/lists/*
-
-# Добавление репо bionic для libenchant1c2a
-RUN set -e \
-  && wget -qO- 'https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x3B4FE6ACC0B21F32' | \
-  gpg --dearmor -o /etc/apt/keyrings/ubuntu-archive-bionic.gpg \
-  && echo "deb [signed-by=/etc/apt/keyrings/ubuntu-archive-bionic.gpg arch=amd64] \
-    http://archive.ubuntu.com/ubuntu bionic main universe" | \
-    tee /etc/apt/sources.list.d/bionic-archive.list > /dev/null
+    ca-certificates
+EOF
 
 # Установка недостающих библиотек
-RUN set -e \
-  && apt-get update \
-  && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-    libgtk-3-0 \
-    libenchant1c2a \
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt/lists,sharing=locked <<EOF
+  set -eux
+  apt-get update
+  DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+    libgtk-3-0t64 \
+    libenchant-2-2 \
     libharfbuzz-icu0 \
     libgstreamer1.0-0 \
     libgstreamer-plugins-base1.0-0 \
@@ -82,81 +85,84 @@ RUN set -e \
     libxfixes3 \
     libxslt1.1 \
     geoclue-2.0
+EOF
 
 COPY --chmod=755 ./scripts/install_new.sh /install.sh
-COPY --from=downloader /tmp/ /tmp/
+COPY --from=downloader /tmp/distr /tmp/distr
 
 SHELL ["/bin/bash", "-c"]
-RUN ls . \
-  && sync; /install.sh
+RUN <<EOF
+  set -eux
+  chmod +x /install.sh
+  sync
+  /install.sh
+EOF
 
 # create symlink to current 1c:enterprise directory
 COPY ./scripts/create-symlink-to-current-1cv8.sh /create-symlink-to-current-1cv8.sh
-RUN chmod +x /create-symlink-to-current-1cv8.sh \
-  && /create-symlink-to-current-1cv8.sh \
-  && rm /create-symlink-to-current-1cv8.sh
+RUN <<EOF
+  set -eux
+  chmod +x /create-symlink-to-current-1cv8.sh
+  /create-symlink-to-current-1cv8.sh
+  rm /create-symlink-to-current-1cv8.sh
+EOF
 
 COPY ./client/configs/current/ /opt/1cv8/current/
 
-FROM ubuntu:20.04
+FROM ${BASE_IMAGE}:${BASE_TAG}
 LABEL maintainer="Anton Kvashenkin <anton.jugatsu@gmail.com> (@jugatsu)"
 
 ARG onec_uid="999"
 ARG onec_gid="999"
 
-COPY --from=base /opt /opt
+COPY --from=installer /opt /opt
+COPY --from=installer /usr/share/applications /usr/share/applications
 
 # Установка gnupg и wget
-RUN set -e \
-  && apt-get update \
-  && apt-get install -y --no-install-recommends \
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt/lists,sharing=locked <<EOF
+  set -eux
+  apt-get update
+  apt-get install -y --no-install-recommends \
     gnupg \
     wget \
+    ca-certificates
+  mkdir -p -m 0755 /etc/apt/keyrings
+EOF
+
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt/lists,sharing=locked <<EOF
+  set -eux
+  apt-get update
+  echo "ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula select true" | debconf-set-selections
+  DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+    locales \
     ca-certificates \
-  && mkdir -p -m 0755 /etc/apt/keyrings \
-  && apt-get clean \
-  && rm -rf /var/lib/apt/lists/*
-
-# Добавление репо bionic для libwebkitgtk-3.0-0
-RUN set -e \
-  && wget -qO- 'https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x3B4FE6ACC0B21F32' | \
-  gpg --dearmor -o /etc/apt/keyrings/ubuntu-archive-bionic.gpg \
-  && echo "deb [signed-by=/etc/apt/keyrings/ubuntu-archive-bionic.gpg arch=amd64] \
-    http://archive.ubuntu.com/ubuntu bionic main universe" | \
-    tee /etc/apt/sources.list.d/bionic-archive.list > /dev/null
-
-# libwebkit2gtk-4.0-37 требуется для 8.3.24
-RUN set -e \
-  && apt-get update \
-  && echo "ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula select true" | debconf-set-selections \
-  && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-      locales \
-      ca-certificates \
-      libgtk2.0-0 \
-      libwebkitgtk-3.0-0 \
-      libwebkit2gtk-4.0-37 \
-      ttf-mscorefonts-installer \
-      libfontconfig1 \
-      libgsf-1-114 \
-      libglib2.0-0 \
-      libodbc1 \
-      libmagickwand-6.q16-3 \
-      dbus-x11 \
-      libglu1-mesa \
-  && rm -rf  \
-    /var/lib/apt/lists/* \
-    /var/cache/debconf \
-  && localedef -i ru_RU -c -f UTF-8 -A /usr/share/locale/locale.alias ru_RU.UTF-8
+    libgtk2.0-0t64 \
+    libwebkit2gtk-4.1-0 \
+    ttf-mscorefonts-installer \
+    libfontconfig1 \
+    libgsf-1-114 \
+    libglib2.0-0 \
+    libodbc2 \
+    libmagickwand-6.q16-7t64 \
+    dbus-x11 \
+    libglu1-mesa
+  locale-gen ru_RU.UTF-8
+EOF
 
 # Установка переменных окружения для корректной работы локали
-ENV LANG ru_RU.UTF-8
-ENV LANGUAGE ru_RU:ru
-ENV LC_ALL ru_RU.UTF-8
+ENV LANG=ru_RU.UTF-8
+ENV LANGUAGE=ru_RU:ru
+ENV LC_ALL=ru_RU.UTF-8
 
-RUN groupadd -r grp1cv8 --gid=$onec_gid \
-  && useradd -r -g grp1cv8 --uid=$onec_uid --home-dir=/home/usr1cv8 --shell=/bin/bash usr1cv8 \
-  && mkdir -p /home/usr1cv8/.1cv8 \
-  && chown -R usr1cv8:grp1cv8 /home/usr1cv8
+RUN <<EOF
+  set -eux
+  groupadd -r grp1cv8 --gid=$onec_gid
+  useradd -r -g grp1cv8 --uid=$onec_uid --home-dir=/home/usr1cv8 --shell=/bin/bash usr1cv8
+  mkdir -p /home/usr1cv8/.1cv8
+  chown -R usr1cv8:grp1cv8 /home/usr1cv8
+EOF
 
 # Копирование лицензий
 # Невозможно реализовать через docker config, потому что платформа не работает с лицензиями на Read-only file system

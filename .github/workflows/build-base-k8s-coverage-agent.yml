@@ -1,0 +1,66 @@
+name: Build base-k8s-coverage-agent
+
+on:
+  workflow_call:
+    inputs:
+      build_enabled:
+        type: boolean
+        default: true
+    secrets:
+      ONEC_USERNAME:
+        required: true
+      ONEC_PASSWORD:
+        required: true
+  workflow_dispatch:
+    inputs:
+      publish:
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build:
+    if: github.event_name == 'workflow_dispatch' || inputs.build_enabled
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: ./.github/actions/pre-build
+
+      - id: build-edt
+        uses: ./.github/actions/build-edt
+        with:
+          EDT_VERSION: '2025.2.6'
+          OPENJDK_VERSION: '17'
+          ONEC_USERNAME: ${{ secrets.ONEC_USERNAME }}
+          ONEC_PASSWORD: ${{ secrets.ONEC_PASSWORD }}
+          is_default_branch: ${{ github.ref == 'refs/heads/main' }}
+
+      - id: build-base-agent
+        uses: ./.github/actions/build-base-k8s-agent
+        with:
+          ONEC_USERNAME: ${{ secrets.ONEC_USERNAME }}
+          ONEC_PASSWORD: ${{ secrets.ONEC_PASSWORD }}
+          ONEC_VERSION: '8.5.1.1343'
+          ONESCRIPT_VERSION: '2.0.2'
+          OPENJDK_VERSION: '17'
+          is_default_branch: ${{ github.ref == 'refs/heads/main' }}
+
+      - name: Build image (base-jenkins-coverage-agent)
+        id: build-coverage-agent
+        uses: ./.github/actions/build-image
+        with:
+          image_name: base-jenkins-coverage-agent
+          image_version: '8.5.1.1343'
+          image_desc: Base Jenkins k8s coverage agent
+          containerfile: coverage41C/Containerfile
+          build_args: |
+            BASE_IMAGE=ghcr.io/${{ github.repository_owner }}/${{ steps.build-base-agent.outputs.image }}
+            BASE_TAG=8.5.1.1343
+            EDT_VERSION=2025.2.6
+            COVERAGE41C_VERSION=2.7.3
+          is_default_branch: ${{ github.ref == 'refs/heads/main' }}
+          publish: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.publish) || 'false' }}

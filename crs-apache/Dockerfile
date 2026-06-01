@@ -1,29 +1,35 @@
-ARG DOCKER_REGISTRY_URL
-ARG ONEC_VERSION
+ARG DOCKER_REGISTRY_URL=localhost
 
-FROM ${DOCKER_REGISTRY_URL:+"$DOCKER_REGISTRY_URL/"}crs:${ONEC_VERSION}
+FROM ${DOCKER_REGISTRY_URL:+"$DOCKER_REGISTRY_URL"/}crs:${ONEC_VERSION}
 
 ARG REPO_DIR=/home/usr1cv8/.1cv8/repo
 
-RUN apt-get update \
-  && DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -y \
-    apache2 \
-  && rm -rf  \
-    /var/lib/apt/lists/* \
-    /var/cache/debconf \
-    /tmp/*
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt/lists,sharing=locked <<EOF
+  set -eux
+  apt-get update
+  DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -y \
+    apache2
+  locale-gen ru_RU.UTF-8
+EOF
 
 COPY ./crs-apache/1crs.conf /etc/apache2/conf-available/
 RUN ln -s /etc/apache2/conf-available/1crs.conf /etc/apache2/conf-enabled/1crs.conf
-RUN echo "export APACHE_RUN_DIR=/etc/apache2\$SUFFIX" >> /etc/apache2/envvars \
-  && echo "export APACHE_PID_FILE=/etc/apache2\$SUFFIX/apache2.pid" >> /etc/apache2/envvars 
+RUN <<EOF
+  set -eux
+  echo "export APACHE_RUN_DIR=/etc/apache2\$SUFFIX" >> /etc/apache2/envvars
+  echo "export APACHE_PID_FILE=/etc/apache2\$SUFFIX/apache2.pid" >> /etc/apache2/envvars
+EOF 
 
 COPY ./crs-apache/repo.1ccr /home/usr1cv8/.1cv8
 RUN mkdir -p ${REPO_DIR}
 
 COPY ./crs-apache/docker-entrypoint.sh /
-RUN chmod 755 /docker-entrypoint.sh \
-  && chmod +x /docker-entrypoint.sh
+RUN <<EOF
+  set -eux
+  chmod 755 /docker-entrypoint.sh
+  chmod +x /docker-entrypoint.sh
+EOF
 
 ENTRYPOINT ["/docker-entrypoint.sh"]
 
