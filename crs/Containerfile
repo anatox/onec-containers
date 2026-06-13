@@ -1,58 +1,18 @@
-ARG DOCKER_REGISTRY_URL=localhost
-FROM ${DOCKER_REGISTRY_URL:+"$DOCKER_REGISTRY_URL"/}oscript-downloader:latest AS downloader
+ARG BASE_IMAGE=quay.io/toolbx/ubuntu-toolbox:26.04
+ARG INSTALLER_IMAGE=localhost/onec-installer:local
 
-# Копирование скрипта скачивания и локальных дистрибутивов
-COPY ./scripts/installer/libexec/yard-download.sh /download.sh
+FROM ${INSTALLER_IMAGE} AS installer
+
+ARG ONEC_VERSION
+ARG GOSU_VER=1.11
+ARG NLS_ENABLED=false
+
+# Копирование локальных дистрибутивов
 COPY ./distr /distr
-RUN chmod +x /download.sh
 
-# Скачивание дистрибутива 1С с использованием вынесенного скрипта
-ARG ONEC_USERNAME
-ARG ONEC_PASSWORD
-ARG ONEC_VERSION
-
-WORKDIR /tmp
-
-# Установка необходимых пакетов и генерация локали
-RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
-    --mount=type=cache,target=/var/lib/apt/lists,sharing=locked <<EOF
-  set -eux
-  apt-get update
-  apt-get install -y \
-    locales \
-    p7zip-rar \
-    p7zip-full
-  locale-gen ru_RU.UTF-8
-EOF
-
-# Установка переменных окружения для корректной работы локали
-ENV LANG=ru_RU.UTF-8
-ENV LANGUAGE=ru_RU:ru
-ENV LC_ALL=ru_RU.UTF-8
-
-RUN --mount=type=cache,target=/var/cache/yard,sharing=locked <<EOF
-  set -eux
-  /download.sh "$ONEC_USERNAME" "$ONEC_PASSWORD" "$ONEC_VERSION" "server"
-  ONEC_MAJOR_VER=$(echo "$ONEC_VERSION" | cut -d'.' -f1,2 | tr -d '.')
-  mkdir -p "/tmp/distr/Platform${ONEC_MAJOR_VER}/${ONEC_VERSION}"
-  cp -r "/var/cache/yard/Platform${ONEC_MAJOR_VER}/${ONEC_VERSION}"/* "/tmp/distr/Platform${ONEC_MAJOR_VER}/${ONEC_VERSION}"/
-EOF
-
-# Начало основной стадии сборки
-FROM ubuntu:24.04 AS installer
-
-# Копируем скрипты и файлы установки
-ARG ONEC_VERSION
-ARG gosu_ver=1.11
-ARG nls_enabled=false
-ENV installer_type=server_crs
-ENV nls=$nls_enabled
-
-
-# Установка зависимостей и настройка локали
-RUN <<EOF
-  set -eux
-  apt-get update
+RUN <<'EOF'
+  set -euxo pipefail
+  apt-get update -qq
   apt-get install -yq \
     procps \
     tzdata \
@@ -65,52 +25,45 @@ RUN <<EOF
   dpkg-reconfigure -f noninteractive tzdata
   dpkg-reconfigure -f noninteractive keyboard-configuration
   export LANG=ru_RU.UTF-8
-EOF
-
-COPY ./scripts/installer/libexec/install-packages.sh /install.sh
-COPY --from=downloader /tmp/distr /tmp/distr
-RUN <<EOF
-  set -eux
-  chmod +x /install.sh
-  sync
-  /install.sh
-EOF
-
-# Создание символической ссылки на текущую директорию 1C
-COPY ./scripts/create-symlink-to-current-1cv8.sh /create-symlink-to-current-1cv8.sh
-RUN <<EOF
-  set -eux
-  chmod +x /create-symlink-to-current-1cv8.sh
-  /create-symlink-to-current-1cv8.sh
-  rm /create-symlink-to-current-1cv8.sh
+  if [ -d /usr/share/applications ]; then find /usr/share/applications -maxdepth 1 -name '*.desktop' -delete; fi
 EOF
 
 # Установка gosu
-ADD https://github.com/tianon/gosu/releases/download/$gosu_ver/gosu-amd64 /bin/gosu
+ADD https://github.com/tianon/gosu/releases/download/$GOSU_VER/gosu-amd64 /bin/gosu
 RUN chmod +x /bin/gosu
 
-# Переход к финальному образу
-FROM debian:bookworm-slim
-LABEL maintainer="Anton Kvashenkin <anton.jugatsu@gmail.com> (@jugatsu)"
+# Начало основной стадии сборки
+RUN --mount=type=cache,id=distr-cache,target=/var/cache/yard,sharing=locked \
+    --mount=type=secret,id=onec_username \
+    --mount=type=secret,id=onec_password <<'EOF'
+  set -euxo pipefail
+  export ONEC_USERNAME="$(cat /run/secrets/onec_username)"
+  export ONEC_PASSWORD="$(cat /run/secrets/onec_password)"
+  onec-install --nls="$NLS_ENABLED" server_crs "$ONEC_VERSION"
+EOF
 
-# Создание пользователя и установка локали
+# Переход к финальному образу
+FROM ${BASE_IMAGE}
+LABEL org.opencontainers.image.authors="Anatolii Sereda <3011745+anatox@users.noreply.github.com>"
+
 ARG onec_uid="999"
 ARG onec_gid="999"
 COPY --from=installer /opt/1cv8 /opt/1cv8
 COPY --from=installer /bin/gosu /bin/gosu
+
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
-    --mount=type=cache,target=/var/lib/apt/lists,sharing=locked <<EOF
-  set -eux
-  apt-get update
-  DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+    --mount=type=cache,target=/var/lib/apt/lists,sharing=locked <<'EOF'
+  set -euxo pipefail
+  apt-get update -qq
+  DEBIAN_FRONTEND=noninteractive apt-get install -y -o=Dpkg::Use-Pty=0 --no-install-recommends \
       locales
   locale-gen ru_RU.UTF-8
 EOF
+# Установка переменных окружения для корректной работы локали
 ENV LANG=ru_RU.UTF-8
 
-# Настройка группы и пользователя
-RUN <<EOF
-  set -eux
+RUN <<'EOF'
+  set -euxo pipefail
   groupadd -r grp1cv8 --gid=$onec_gid
   useradd -r -g grp1cv8 --uid=$onec_uid --home-dir=/home/usr1cv8 --shell=/bin/bash usr1cv8
   mkdir -p /home/usr1cv8/.1cv8
@@ -119,12 +72,10 @@ EOF
 
 VOLUME /home/usr1cv8/.1cv8
 
-# Установка точки входа
 COPY ./crs/entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN ln -s usr/local/bin/entrypoint.sh /  # backwards compat
 RUN chmod +x /usr/local/bin/entrypoint.sh
 
-# Настройка точки входа и экспонирование портов
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 EXPOSE 1542
 CMD ["crserver"]

@@ -1,67 +1,74 @@
 name: Build edt-k8s-agent
 
+run-name: ${{ github.ref_type == 'tag' && format('Build {0}', github.ref_name) || 'Build edt-k8s-agent' }}
+
 on:
-  workflow_call:
-    inputs:
-      build_enabled:
-        type: boolean
-        default: true
-    secrets:
-      ONEC_USERNAME:
-        required: true
-      ONEC_PASSWORD:
-        required: true
+  push:
+    tags:
+      - 'packages/edt-agent-k8s/v*'
+  pull_request:
+    branches: [main]
   workflow_dispatch:
     inputs:
+      edt_version:
+        description: EDT version
+        type: string
+        default: '2025.2.6'
       publish:
         type: boolean
         default: false
 
 permissions:
-  contents: read
+  contents: write
   packages: write
 
 jobs:
   build:
-    if: github.event_name == 'workflow_dispatch' || inputs.build_enabled
-    runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request' || vars.BUILD_EDT_K8S_AGENT != 'false'
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v6
+        with:
+          fetch-depth: ${{ github.ref_type == 'tag' && '0' || '1' }}
 
-      - uses: ./.github/actions/pre-build
+      - id: pre-build
+        uses: ./.github/actions/pre-build
+        with:
+          component: edt-agent-k8s
 
       - id: build-edt
         uses: ./.github/actions/build-edt
         with:
-          EDT_VERSION: '2025.2.6'
+          EDT_VERSION: ${{ steps.pre-build.outputs.version || inputs.edt_version }}
           OPENJDK_VERSION: '17'
           ONEC_USERNAME: ${{ secrets.ONEC_USERNAME }}
           ONEC_PASSWORD: ${{ secrets.ONEC_PASSWORD }}
-          is_default_branch: ${{ github.ref == 'refs/heads/main' }}
+          is_default_branch: ${{ steps.pre-build.outputs.is_default_branch == 'true' }}
 
       - name: Build image (edt-s6)
         id: build-edt-s6
         uses: ./.github/actions/build-image
         with:
           image_name: edt-s6
-          image_version: '2025.2.6'
-          image_desc: EDT + s6-overlay
+          image_version: ${{ steps.pre-build.outputs.image_tag || inputs.edt_version }}
+          image_title: EDT + s6-overlay
           containerfile: s6-overlay/Containerfile
           build_args: |
-            BASE_IMAGE=ghcr.io/${{ github.repository_owner }}/${{ steps.build-edt.outputs.image }}
-            BASE_TAG=2025.2.6
-          is_default_branch: ${{ github.ref == 'refs/heads/main' }}
+            BASE_IMAGE=${{ steps.build-edt.outputs.image-with-tag }}
+          is_default_branch: ${{ steps.pre-build.outputs.is_default_branch == 'true' }}
 
       - name: Build image (edt-agent)
         id: build-edt-agent
         uses: ./.github/actions/build-image
         with:
           image_name: edt-agent
-          image_version: '2025.2.6'
-          image_desc: EDT k8s agent
+          image_version: ${{ steps.pre-build.outputs.image_tag || inputs.edt_version }}
+          image_title: EDT k8s agent
           containerfile: k8s-jenkins-agent/Containerfile
           build_args: |
-            BASE_IMAGE=ghcr.io/${{ github.repository_owner }}/${{ steps.build-edt-s6.outputs.image }}
-            BASE_TAG=2025.2.6
-          is_default_branch: ${{ github.ref == 'refs/heads/main' }}
-          publish: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.publish) || 'false' }}
+            BASE_IMAGE=${{ steps.build-edt-s6.outputs.image-with-tag }}
+          is_default_branch: ${{ steps.pre-build.outputs.is_default_branch == 'true' }}
+          publish: ${{ github.ref_type == 'tag' || (github.event_name == 'workflow_dispatch' && inputs.publish) }}
+          registry_url: ${{ vars.CONTAINER_REGISTRY_URL }}
+          registry_username: ${{ vars.CONTAINER_REGISTRY_USERNAME }}
+          registry_password: ${{ secrets.CONTAINER_REGISTRY_PASSWORD }}

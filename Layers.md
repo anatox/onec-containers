@@ -1,6 +1,6 @@
 # Примеры сборки и наслаивания
 
-Ниже список последовательно собираемых образов для различных целей. Каждый следущий слой собирается поверх предыдущего. В Containerfile базовый образ указывается с помощью переменных BASE_IMAGE и BASE_TAG.
+Ниже список последовательно собираемых образов для различных целей. Каждый следующий слой собирается поверх предыдущего. В Containerfile базовый образ указывается через `ARG BASE_IMAGE=<имя>:<тег>`.
 
 ## Запуск 1С
 
@@ -55,6 +55,22 @@
 * [build-base-swarm-jenkins-agent.sh](build-base-swarm-jenkins-agent.sh)
 * [build-base-k8s-jenkins-agent.sh](build-base-k8s-jenkins-agent.sh)
 
+## 1С + OneScript как Jenkins агент с покрытием (coverage41C)
+
+* client
+* s6-overlay
+* client-vnc
+* oscript
+* jdk
+* test-utils
+* swarm-jenkins-agent или k8s-jenkins-agent
+* coverage41C
+
+Реализовано в скриптах:
+
+* [build-base-swarm-jenkins-coverage-agent.sh](build-base-swarm-jenkins-coverage-agent.sh)
+* [build-base-k8s-jenkins-coverage-agent.sh](build-base-k8s-jenkins-coverage-agent.sh)
+
 ## EDT
 
 * edt
@@ -76,7 +92,7 @@
 
 ## OneScript как Jenkins агент
 
-* oscript поверх library/eclipse-temurin:17
+* oscript поверх eclipse-temurin:17
 * s6-overlay
 * swarm-jenkins-agent или k8s-jenkins-agent
 
@@ -89,3 +105,17 @@
 
 * crs
 * crs-apache
+
+## Toolbox-образы (distrobox)
+
+* edt-toolbox
+* client-toolbox (поверх edt-toolbox)
+
+Реализовано в скриптах:
+
+* [build-client-toolbox.sh](build-client-toolbox.sh)
+* [build-edt-toolbox.sh](build-edt-toolbox.sh)
+
+## Примечание
+
+oscript, installer, client, server, crs и edt в свою очередь требуют предварительной сборки инструментальной цепочки `oscript → installer` (в CI — composite action `build-installer`, в локальных скриптах шаги явно прописаны). Исключение: oscript-агент использует `eclipse-temurin:17` напрямую.

@@ -1,66 +1,78 @@
 name: Build oscript-swarm-agent
 
+run-name: ${{ github.ref_type == 'tag' && format('Build {0}', github.ref_name) || 'Build oscript-swarm-agent' }}
+
 on:
-  workflow_call:
-    inputs:
-      build_enabled:
-        type: boolean
-        default: true
+  push:
+    tags:
+      - 'packages/oscript-agent/v*'
+  pull_request:
+    branches: [main]
   workflow_dispatch:
     inputs:
+      oscript_version:
+        description: OneScript version
+        type: string
+        default: '2.0.2'
       publish:
         type: boolean
         default: false
 
 permissions:
-  contents: read
+  contents: write
   packages: write
 
 jobs:
   build:
-    if: github.event_name == 'workflow_dispatch' || inputs.build_enabled
-    runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request' || vars.BUILD_OSCRIPT_SWARM_AGENT != 'false'
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v6
+        with:
+          fetch-depth: ${{ github.ref_type == 'tag' && '0' || '1' }}
 
-      - uses: ./.github/actions/pre-build
+      - id: pre-build
+        uses: ./.github/actions/pre-build
+        with:
+          component: oscript-agent
 
       - name: Build image (oscript-jdk)
         id: build-oscript-jdk
         uses: ./.github/actions/build-image
         with:
           image_name: oscript-jdk
-          image_version: latest
-          image_desc: OneScript + JDK
+          image_version: ${{ steps.pre-build.outputs.image_tag || inputs.oscript_version }}
+          image_title: OneScript + JDK
           containerfile: oscript/Containerfile
           build_args: |
             BASE_IMAGE=eclipse-temurin
             BASE_TAG=17
-          is_default_branch: ${{ github.ref == 'refs/heads/main' }}
+          is_default_branch: ${{ steps.pre-build.outputs.is_default_branch == 'true' }}
 
       - name: Build image (oscript-jdk-s6)
         id: build-oscript-jdk-s6
         uses: ./.github/actions/build-image
         with:
           image_name: oscript-jdk-s6
-          image_version: latest
-          image_desc: OneScript + JDK + s6-overlay
+          image_version: ${{ steps.pre-build.outputs.image_tag || inputs.oscript_version }}
+          image_title: OneScript + JDK + s6-overlay
           containerfile: s6-overlay/Containerfile
           build_args: |
-            BASE_IMAGE=ghcr.io/${{ github.repository_owner }}/${{ steps.build-oscript-jdk.outputs.image }}
-            BASE_TAG=latest
-          is_default_branch: ${{ github.ref == 'refs/heads/main' }}
+            BASE_IMAGE=${{ steps.build-oscript-jdk.outputs.image-with-tag }}
+          is_default_branch: ${{ steps.pre-build.outputs.is_default_branch == 'true' }}
 
       - name: Build image (oscript-agent)
         id: build-oscript-agent
         uses: ./.github/actions/build-image
         with:
           image_name: oscript-agent
-          image_version: latest
-          image_desc: OneScript swarm agent
+          image_version: ${{ steps.pre-build.outputs.image_tag || inputs.oscript_version }}
+          image_title: OneScript swarm agent
           containerfile: swarm-jenkins-agent/Containerfile
           build_args: |
-            BASE_IMAGE=ghcr.io/${{ github.repository_owner }}/${{ steps.build-oscript-jdk-s6.outputs.image }}
-            BASE_TAG=latest
-          is_default_branch: ${{ github.ref == 'refs/heads/main' }}
-          publish: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.publish) || 'false' }}
+            BASE_IMAGE=${{ steps.build-oscript-jdk-s6.outputs.image-with-tag }}
+          is_default_branch: ${{ steps.pre-build.outputs.is_default_branch == 'true' }}
+          publish: ${{ github.ref_type == 'tag' || (github.event_name == 'workflow_dispatch' && inputs.publish) }}
+          registry_url: ${{ vars.CONTAINER_REGISTRY_URL }}
+          registry_username: ${{ vars.CONTAINER_REGISTRY_USERNAME }}
+          registry_password: ${{ secrets.CONTAINER_REGISTRY_PASSWORD }}

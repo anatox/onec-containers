@@ -1,18 +1,62 @@
 name: Pre-build
-description: Common build prerequisites — free disk space, Docker login, cosign install
+description: Common build prerequisites - checkout, free disk space, cosign install, default-branch detection, tag resolution
+
+inputs:
+  component:
+    required: true
+    description: Component name for tag resolution (e.g. server, edt-agent)
+
+outputs:
+  is_default_branch:
+    value: ${{ steps.check-default-branch.outputs.is_default_branch }}
+  version:
+    value: ${{ steps.resolve-tag.outputs.version }}
+  version_main:
+    value: ${{ steps.resolve-tag.outputs.version_main }}
+  version_deps:
+    value: ${{ steps.resolve-tag.outputs.version_deps }}
+  build_num:
+    value: ${{ steps.resolve-tag.outputs.build_num }}
+  image_tag:
+    value: ${{ steps.resolve-tag.outputs.image_tag }}
 
 runs:
   using: composite
   steps:
-    - name: Maximize build space
-      uses: jlumbroso/free-disk-space@main
+    - id: check-default-branch
+      uses: ./.github/actions/check-default-branch
 
-    - name: Docker login
-      uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef
+    - id: resolve-tag
+      if: github.ref_type == 'tag'
+      uses: ./.github/actions/resolve-tag
       with:
-        registry: ghcr.io
-        username: ${{ github.actor }}
-        password: ${{ github.token }}
+        tag_ref: ${{ github.ref }}
+        component: ${{ inputs.component }}
+
+    - name: Show initial disk space
+      shell: bash
+      run: |
+          echo "=== INITIAL DISK SPACE ==="
+          df -h /
+
+    - name: Maximize build space
+      uses: endersonmenezes/free-disk-space@v3
+      with:
+        remove_android: true
+        remove_dotnet: true
+        remove_haskell: true
+        remove_tool_cache: true
+        remove_swap: true
+        remove_packages: "azure-cli google-cloud-cli microsoft-edge-stable google-chrome-stable firefox"
+        remove_packages_one_command: true
+        remove_folders: "/usr/share/swift /usr/share/miniconda /etc/skel /home/packer /opt/pipx /opt/actionarchivecache /opt/runner-cache"
+        rm_cmd: "rmz"
+
+    - name: Show available disk space
+      shell: bash
+      run: |
+          echo "=== FINAL DISK SPACE ==="
+          df -h /
 
     - name: Install Cosign
       uses: sigstore/cosign-installer@d7543c93d881b35a8faa02e8e3605f69b7a1ce62

@@ -1,32 +1,44 @@
 #!/usr/bin/env bash
 set -eo pipefail
 
-
 last_args=(.)
 if [ "${NO_CACHE}" = 'true' ] ; then
     last_args=(--no-cache .)
 fi
 
-docker build \
-    --pull \
-    --build-arg "ONEC_USERNAME=$ONEC_USERNAME" \
-    --build-arg "ONEC_PASSWORD=$ONEC_PASSWORD" \
+export ONEC_VERSION="${ONEC_VERSION:-8.5.1.1343}"
+export YARD_VERSION="${YARD_VERSION:-1.9.2}"
+
+./build-installer.sh
+
+echo "=== crs ==="
+buildah build \
+    --secret=id=onec_username,env=ONEC_USERNAME \
+    --secret=id=onec_password,env=ONEC_PASSWORD \
+    --build-arg "INSTALLER_IMAGE=localhost/onec-installer:$YARD_VERSION" \
     --build-arg "ONEC_VERSION=$ONEC_VERSION" \
     -t localhost/crs:"$ONEC_VERSION" \
+    -t localhost/crs:local \
     -f crs/Containerfile \
     "${last_args[@]}"
 
-docker build \
+echo "=== crs-apache ==="
+buildah build \
+    --build-arg "BASE_IMAGE=localhost/crs:$ONEC_VERSION" \
     --build-arg "ONEC_VERSION=$ONEC_VERSION" \
     -t localhost/crs-apache:"$ONEC_VERSION" \
+    -t localhost/crs-apache:local \
     -f crs-apache/Containerfile \
     "${last_args[@]}"
 
-if [[ "$PUSH" = "true" && -n "$DOCKER_REGISTRY_URL" ]]; then
-    docker tag localhost/crs:"$ONEC_VERSION" "$DOCKER_REGISTRY_URL/crs:$ONEC_VERSION"
-    docker push "$DOCKER_REGISTRY_URL/crs:$ONEC_VERSION"
-    docker tag localhost/crs-apache:"$ONEC_VERSION" "$DOCKER_REGISTRY_URL/crs-apache:$ONEC_VERSION"
-    docker push "$DOCKER_REGISTRY_URL/crs-apache:$ONEC_VERSION"
+if [ "${PUSH}" = 'true' ]; then
+    if [ -z "${CONTAINER_REGISTRY_URL}" ]; then
+        echo "ОШИБКА: CONTAINER_REGISTRY_URL должен быть задан при PUSH=true"
+        exit 1
+    fi
+    echo "=== Публикация crs ==="
+    buildah push localhost/crs:"$ONEC_VERSION" "$CONTAINER_REGISTRY_URL/crs:$ONEC_VERSION"
+    buildah push localhost/crs-apache:"$ONEC_VERSION" "$CONTAINER_REGISTRY_URL/crs-apache:$ONEC_VERSION"
 else
-    echo "PUSH not enabled or DOCKER_REGISTRY_URL not set, skipping push."
+    echo "=== Публикация пропущена (PUSH=true для включения) ==="
 fi

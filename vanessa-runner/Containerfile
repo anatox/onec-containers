@@ -1,9 +1,11 @@
-FROM oscript:2.0.2
-LABEL maintainer="Anton Kvashenkin <anton.jugatsu@gmail.com> (@jugatsu)"
+ARG BASE_IMAGE=localhost/oscript:local
+
+FROM ${BASE_IMAGE}
+LABEL org.opencontainers.image.authors="Anatolii Sereda <3011745+anatox@users.noreply.github.com>"
 
 ARG runner_ver=1.7.0
 
-RUN <<EOF
+RUN <<'EOF'
   set -eux
   opm install vanessa-runner@$runner_ver
   sed -i 's/#Использовать JSON/#Использовать json/g' \

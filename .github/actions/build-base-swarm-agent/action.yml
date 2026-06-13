@@ -1,5 +1,5 @@
 name: Build base-swarm-agent
-description: Builds base Jenkins swarm agent image chain (oscript-downloader → client → s6 → vnc → oscript → jdk → test-utils → agent)
+description: Builds base Jenkins swarm agent image chain (onec-installer → client → s6 → vnc → oscript → jdk → test-utils → agent)
 
 inputs:
   ONEC_USERNAME:
@@ -24,6 +24,15 @@ inputs:
     default: 'false'
   publish:
     default: 'false'
+  registry_url:
+    default: ''
+    description: Registry URL (defaults to ghcr.io)
+  registry_username:
+    default: ''
+    description: Registry auth username (defaults to github.actor)
+  registry_password:
+    default: ''
+    description: Registry auth password (defaults to github.token)
 
 outputs:
   image:
@@ -33,27 +42,11 @@ outputs:
 runs:
   using: composite
   steps:
-    - uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef
-      with:
-        registry: ghcr.io
-        username: ${{ github.actor }}
-        password: ${{ github.token }}
-
     - uses: sigstore/cosign-installer@d7543c93d881b35a8faa02e8e3605f69b7a1ce62
 
-    - name: Build image (oscript-downloader)
-      id: build-oscript-downloader
-      uses: ./.github/actions/build-image
+    - id: build-installer
+      uses: ./.github/actions/build-installer
       with:
-        image_name: oscript-downloader
-        image_version: latest
-        image_desc: OneScript downloader
-        containerfile: oscript/Containerfile
-        build_args: |
-          BASE_IMAGE=ubuntu
-          BASE_TAG=24.04
-          ONESCRIPT_VERSION=${{ inputs.ONESCRIPT_VERSION }}
-          ONESCRIPT_PACKAGES=yard
         is_default_branch: ${{ inputs.is_default_branch }}
 
     - name: Build image (onec-client)
@@ -62,12 +55,14 @@ runs:
       with:
         image_name: onec-client
         image_version: ${{ inputs.ONEC_VERSION }}
-        image_desc: 1C:Enterprise client
+        image_title: 1C:Enterprise client
         containerfile: client/Containerfile
         build_args: |
-          ONEC_USERNAME=${{ inputs.ONEC_USERNAME }}
-          ONEC_PASSWORD=${{ inputs.ONEC_PASSWORD }}
           ONEC_VERSION=${{ inputs.ONEC_VERSION }}
+          INSTALLER_IMAGE=${{ steps.build-installer.outputs.image-with-tag }}
+        secrets: |
+          onec_username=${{ inputs.ONEC_USERNAME }}
+          onec_password=${{ inputs.ONEC_PASSWORD }}
         is_default_branch: ${{ inputs.is_default_branch }}
 
     - name: Build image (onec-client-s6)
@@ -76,11 +71,10 @@ runs:
       with:
         image_name: onec-client-s6
         image_version: ${{ inputs.ONEC_VERSION }}
-        image_desc: 1C:Enterprise client + s6-overlay
+        image_title: 1C:Enterprise client + s6-overlay
         containerfile: s6-overlay/Containerfile
         build_args: |
-          BASE_IMAGE=ghcr.io/${{ github.repository_owner }}/${{ steps.build-client.outputs.image }}
-          BASE_TAG=${{ inputs.ONEC_VERSION }}
+          BASE_IMAGE=${{ steps.build-client.outputs.image-with-tag }}
         is_default_branch: ${{ inputs.is_default_branch }}
 
     - name: Build image (onec-client-vnc)
@@ -89,11 +83,10 @@ runs:
       with:
         image_name: onec-client-vnc
         image_version: ${{ inputs.ONEC_VERSION }}
-        image_desc: 1C:Enterprise client + VNC
+        image_title: 1C:Enterprise client + VNC
         containerfile: client-vnc/Containerfile
         build_args: |
-          BASE_IMAGE=ghcr.io/${{ github.repository_owner }}/${{ steps.build-client-s6.outputs.image }}
-          BASE_TAG=${{ inputs.ONEC_VERSION }}
+          BASE_IMAGE=${{ steps.build-client-s6.outputs.image-with-tag }}
         is_default_branch: ${{ inputs.is_default_branch }}
 
     - name: Build image (onec-client-vnc-oscript)
@@ -102,11 +95,10 @@ runs:
       with:
         image_name: onec-client-vnc-oscript
         image_version: ${{ inputs.ONEC_VERSION }}
-        image_desc: 1C:Enterprise client + VNC + OneScript
+        image_title: 1C:Enterprise client + VNC + OneScript
         containerfile: oscript/Containerfile
         build_args: |
-          BASE_IMAGE=ghcr.io/${{ github.repository_owner }}/${{ steps.build-client-vnc.outputs.image }}
-          BASE_TAG=${{ inputs.ONEC_VERSION }}
+          BASE_IMAGE=${{ steps.build-client-vnc.outputs.image-with-tag }}
         is_default_branch: ${{ inputs.is_default_branch }}
 
     - name: Build image (onec-client-vnc-oscript-jdk)
@@ -115,11 +107,10 @@ runs:
       with:
         image_name: onec-client-vnc-oscript-jdk
         image_version: ${{ inputs.ONEC_VERSION }}
-        image_desc: 1C:Enterprise client + VNC + OneScript + JDK
+        image_title: 1C:Enterprise client + VNC + OneScript + JDK
         containerfile: jdk/Containerfile
         build_args: |
-          BASE_IMAGE=ghcr.io/${{ github.repository_owner }}/${{ steps.build-client-vnc-oscript.outputs.image }}
-          BASE_TAG=${{ inputs.ONEC_VERSION }}
+          BASE_IMAGE=${{ steps.build-client-vnc-oscript.outputs.image-with-tag }}
           OPENJDK_VERSION=${{ inputs.OPENJDK_VERSION }}
         is_default_branch: ${{ inputs.is_default_branch }}
 
@@ -129,11 +120,10 @@ runs:
       with:
         image_name: onec-client-vnc-oscript-jdk-testutils
         image_version: ${{ inputs.ONEC_VERSION }}
-        image_desc: 1C:Enterprise client + VNC + OneScript + JDK + test-utils
+        image_title: 1C:Enterprise client + VNC + OneScript + JDK + test-utils
         containerfile: test-utils/Containerfile
         build_args: |
-          BASE_IMAGE=ghcr.io/${{ github.repository_owner }}/${{ steps.build-client-vnc-oscript-jdk.outputs.image }}
-          BASE_TAG=${{ inputs.ONEC_VERSION }}
+          BASE_IMAGE=${{ steps.build-client-vnc-oscript-jdk.outputs.image-with-tag }}
           TEST_UTILS_EXTRA_PACKAGES=${{ inputs.TEST_UTILS_EXTRA_PACKAGES }}
         is_default_branch: ${{ inputs.is_default_branch }}
 
@@ -143,10 +133,12 @@ runs:
       with:
         image_name: base-jenkins-agent
         image_version: ${{ inputs.ONEC_VERSION }}
-        image_desc: Base Jenkins swarm agent
+        image_title: Base Jenkins swarm agent
         containerfile: swarm-jenkins-agent/Containerfile
         build_args: |
-          BASE_IMAGE=ghcr.io/${{ github.repository_owner }}/${{ steps.build-client-vnc-oscript-jdk-testutils.outputs.image }}
-          BASE_TAG=${{ inputs.ONEC_VERSION }}
+          BASE_IMAGE=${{ steps.build-client-vnc-oscript-jdk-testutils.outputs.image-with-tag }}
         is_default_branch: ${{ inputs.is_default_branch }}
         publish: ${{ inputs.publish }}
+        registry_url: ${{ inputs.registry_url }}
+        registry_username: ${{ inputs.registry_username }}
+        registry_password: ${{ inputs.registry_password }}

@@ -1,39 +1,47 @@
 #!/usr/bin/env bash
 set -eo pipefail
 
-
 last_args=(.)
 if [ "${NO_CACHE}" = 'true' ] ; then
     last_args=(--no-cache .)
 fi
 
-docker build \
-    --pull \
-    --build-arg BASE_IMAGE=eclipse-temurin \
-    --build-arg "BASE_TAG=$OPENJDK_VERSION" \
+export OPENJDK_VERSION="${OPENJDK_VERSION:-17}"
+export ONESCRIPT_VERSION="${ONESCRIPT_VERSION:-2.0.2}"
+
+echo "=== oscript-jdk ==="
+buildah build \
+    --build-arg "BASE_IMAGE=eclipse-temurin:$OPENJDK_VERSION-jdk-resolute" \
+    --build-arg "ONESCRIPT_VERSION=$ONESCRIPT_VERSION" \
     -t localhost/oscript-jdk:latest \
+    -t localhost/oscript-jdk:local \
     -f oscript/Containerfile \
     "${last_args[@]}"
 
-docker build \
-    --build-arg BASE_IMAGE=localhost/oscript-jdk \
-    --build-arg BASE_TAG=latest \
+echo "=== oscript-jdk-s6 ==="
+buildah build \
+    --build-arg BASE_IMAGE=localhost/oscript-jdk:latest \
     -t localhost/oscript-jdk-s6:latest \
+    -t localhost/oscript-jdk-s6:local \
     -f s6-overlay/Containerfile \
     "${last_args[@]}"
 
-docker build \
-    --build-arg BASE_IMAGE=localhost/oscript-jdk-s6 \
-    --build-arg BASE_TAG=latest \
+echo "=== oscript-agent ==="
+buildah build \
+    --build-arg BASE_IMAGE=localhost/oscript-jdk-s6:latest \
     -t localhost/oscript-agent:latest \
+    -t localhost/oscript-agent:local \
     -f swarm-jenkins-agent/Containerfile \
     "${last_args[@]}"
 
-if [[ "$PUSH" = "true" && -n "$DOCKER_REGISTRY_URL" ]]; then
-    docker tag localhost/oscript-jdk-s6:latest "$DOCKER_REGISTRY_URL/oscript-jdk-s6:latest"
-    docker push "$DOCKER_REGISTRY_URL/oscript-jdk-s6:latest"
-    docker tag localhost/oscript-agent:latest "$DOCKER_REGISTRY_URL/oscript-agent:latest"
-    docker push "$DOCKER_REGISTRY_URL/oscript-agent:latest"
+if [ "${PUSH}" = 'true' ]; then
+    if [ -z "${CONTAINER_REGISTRY_URL}" ]; then
+        echo "ОШИБКА: CONTAINER_REGISTRY_URL должен быть задан при PUSH=true"
+        exit 1
+    fi
+    echo "=== Публикация ==="
+    buildah push localhost/oscript-jdk-s6:latest "$CONTAINER_REGISTRY_URL/oscript-jdk-s6:latest"
+    buildah push localhost/oscript-agent:latest "$CONTAINER_REGISTRY_URL/oscript-agent:latest"
 else
-    echo "PUSH not enabled or DOCKER_REGISTRY_URL not set, skipping push."
+    echo "=== Публикация пропущена (PUSH=true для включения) ==="
 fi

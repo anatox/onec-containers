@@ -1,57 +1,51 @@
 #!/usr/bin/env bash
 set -eo pipefail
 
-if [[ "$EDT_VERSION" == 2024* ]] || [[ "$EDT_VERSION" == 2025* ]] || [[ "$EDT_VERSION" == 2026* ]]; then
-    INSTALLER_BASE_IMAGE="eclipse-temurin"
-    INSTALLER_BASE_TAG="${OPENJDK_VERSION}-jdk-noble"
-else
-    INSTALLER_BASE_IMAGE="eclipse-temurin"
-    INSTALLER_BASE_TAG="11-jdk-focal"
-fi
-
 last_args=(.)
 if [ "${NO_CACHE}" = 'true' ] ; then
     last_args=(--no-cache .)
 fi
 
-echo "=== Building oscript-downloader ==="
-docker build \
-    --pull \
-    --build-arg BASE_IMAGE=ubuntu \
-    --build-arg BASE_TAG=24.04 \
-    --build-arg "ONESCRIPT_VERSION=$ONESCRIPT_VERSION" \
-    --build-arg ONESCRIPT_PACKAGES="yard" \
-    -t localhost/oscript-downloader:latest \
-    -t oscript-downloader:latest \
-    -f oscript/Containerfile \
-    "${last_args[@]}"
+export ONEC_VERSION="${ONEC_VERSION:-8.5.1.1343}"
+export YARD_VERSION="${YARD_VERSION:-1.9.2}"
+export EDT_VERSION="${EDT_VERSION:-2026.1.2}"
 
-echo "=== Building edt-toolbox ==="
-docker build \
-    --build-arg "ONEC_USERNAME=$ONEC_USERNAME" \
-    --build-arg "ONEC_PASSWORD=$ONEC_PASSWORD" \
-    --build-arg "EDT_VERSION=$EDT_VERSION" \
-    --build-arg "OPENJDK_VERSION=$OPENJDK_VERSION" \
-    --build-arg "INSTALLER_BASE_IMAGE=$INSTALLER_BASE_IMAGE" \
-    --build-arg "INSTALLER_BASE_TAG=$INSTALLER_BASE_TAG" \
-    -t localhost/edt-toolbox:"$EDT_VERSION" \
-    -t localhost/edt-toolbox:latest \
+./build-installer.sh
+
+echo "=== edt-toolbox (base) ==="
+buildah build \
+    --secret=id=onec_username,env=ONEC_USERNAME \
+    --secret=id=onec_password,env=ONEC_PASSWORD \
+  --build-arg "INSTALLER_IMAGE=localhost/onec-installer:$YARD_VERSION" \
+  --build-arg "EDT_VERSION=$EDT_VERSION" \
+  -t localhost/edt-toolbox:"${EDT_VERSION}-base" \
+  -t localhost/edt-toolbox:local \
     -f edt-toolbox/Containerfile \
     "${last_args[@]}"
 
-echo "=== Build complete: edt-toolbox:$EDT_VERSION ==="
+EDT_CLIENT_TAG="${EDT_VERSION}-client${ONEC_VERSION}"
+
+echo "=== edt-toolbox (client-toolbox) ==="
+buildah build \
+    --secret=id=onec_username,env=ONEC_USERNAME \
+    --secret=id=onec_password,env=ONEC_PASSWORD \
+    --build-arg "INSTALLER_IMAGE=localhost/onec-installer:$YARD_VERSION" \
+    --build-arg "ONEC_VERSION=$ONEC_VERSION" \
+    --build-arg "BASE_IMAGE=localhost/edt-toolbox:${EDT_VERSION}-base" \
+    -t localhost/edt-toolbox:"$EDT_CLIENT_TAG" \
+    -t localhost/edt-toolbox:local \
+    -f client-toolbox/Containerfile \
+    "${last_args[@]}"
+
+echo "=== Сборка завершена: edt-toolbox:$EDT_CLIENT_TAG ==="
 
 if [ "${PUSH}" = 'true' ]; then
-    if [ -z "${DOCKER_REGISTRY_URL}" ]; then
-        echo "ERROR: DOCKER_REGISTRY_URL must be set when PUSH=true"
+    if [ -z "${CONTAINER_REGISTRY_URL}" ]; then
+        echo "ОШИБКА: CONTAINER_REGISTRY_URL должен быть задан при PUSH=true"
         exit 1
     fi
-    echo "=== Pushing edt-toolbox to ${DOCKER_REGISTRY_URL} ==="
-    docker tag localhost/edt-toolbox:"$EDT_VERSION" "$DOCKER_REGISTRY_URL/edt-toolbox:$EDT_VERSION"
-    docker tag localhost/edt-toolbox:latest             "$DOCKER_REGISTRY_URL/edt-toolbox:latest"
-    docker push "$DOCKER_REGISTRY_URL/edt-toolbox:$EDT_VERSION"
-    docker push "$DOCKER_REGISTRY_URL/edt-toolbox:latest"
-    echo "=== Push complete ==="
+    echo "=== Публикация edt-toolbox ==="
+    buildah push localhost/edt-toolbox:"$EDT_CLIENT_TAG" "$CONTAINER_REGISTRY_URL/edt-toolbox:$EDT_CLIENT_TAG"
 else
-    echo "=== Skipping push (set PUSH=true to enable) ==="
+    echo "=== Публикация пропущена (PUSH=true для включения) ==="
 fi

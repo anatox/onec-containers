@@ -1,22 +1,21 @@
 ARG BASE_IMAGE
-ARG BASE_TAG
 
 # BASE_IMAGE must contain s6-overlay
-FROM ${BASE_IMAGE}:${BASE_TAG}
+FROM ${BASE_IMAGE}
 
-LABEL maintainer="Dima Ovcharenko <d.ovcharenko90@gmail.com>, Korus Consulting LLC"
+LABEL org.opencontainers.image.authors="Anatolii Sereda <3011745+anatox@users.noreply.github.com>"
 
 USER root
 
-# FIX: remove old libstdc++ shipped with 1C (causes GLIBCXX errors)
-RUN find /opt/1cv8 -name "libstdc++.so*" -delete
+# FIX: remove old libstdc++ and libgcc_s shipped with 1C (causes GLIBCXX/GCC version errors)
+RUN find /opt/1cv8 \( -name "libgcc_s.so*" -o -name "libstdc++.so*" \) -delete
 
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
-    --mount=type=cache,target=/var/lib/apt/lists,sharing=locked <<EOF
+    --mount=type=cache,target=/var/lib/apt/lists,sharing=locked <<'EOF'
   set -eux
-  apt-get update
+  apt-get update -qq
   apt-mark hold iptables
-  env DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+  env DEBIAN_FRONTEND=noninteractive apt-get install -y -o=Dpkg::Use-Pty=0 --no-install-recommends \
     dbus-x11 \
     x11-xserver-utils \
     x11-utils \

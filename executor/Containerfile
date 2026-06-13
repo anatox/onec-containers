@@ -1,8 +1,8 @@
-ARG BASE_IMAGE=ubuntu
-ARG BASE_TAG=24.04
-FROM ${BASE_IMAGE}:${BASE_TAG}
+ARG BASE_IMAGE=ubuntu:26.04
 
-LABEL maintainer="i@pravets.ru"
+FROM ${BASE_IMAGE}
+
+LABEL org.opencontainers.image.authors="Anatolii Sereda <3011745+anatox@users.noreply.github.com>"
 LABEL author="Iosif Pravets"
 
 ARG EXECUTOR_VERSION
@@ -10,10 +10,10 @@ ARG EXECUTOR_VERSION
 WORKDIR /tmp
 
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
-    --mount=type=cache,target=/var/lib/apt/lists,sharing=locked <<EOF
+    --mount=type=cache,target=/var/lib/apt/lists,sharing=locked <<'EOF'
   set -eux
-  apt-get update
-  DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -y \
+  apt-get update -qq
+  DEBIAN_FRONTEND=noninteractive apt-get install -y -o=Dpkg::Use-Pty=0 --no-install-recommends \
     locales \
     ca-certificates \
     curl \
@@ -24,7 +24,7 @@ EOF
 ENV LANG=ru_RU.UTF-8
 
 # Install Executor (используем BuildKit secret)
-RUN --mount=type=secret,id=dev1c_executor_api_key <<EOF
+RUN --mount=type=secret,id=dev1c_executor_api_key <<'EOF'
   set -eux
   curl -sSL --fail \
     -H "X-Developer-1c-Api:$(cat /run/secrets/dev1c_executor_api_key)" \

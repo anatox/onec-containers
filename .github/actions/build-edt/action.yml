@@ -1,22 +1,16 @@
 name: Build EDT
-description: Builds EDT image (oscript-downloader → edt) with dynamic JDK base image
+description: Builds EDT image (onec-installer → edt)
 
 inputs:
   EDT_VERSION:
     required: true
     description: EDT version (e.g. 2025.2.6)
-  OPENJDK_VERSION:
-    required: true
-    description: OpenJDK version for noble tag (e.g. 17)
   ONEC_USERNAME:
     required: true
     description: 1C portal username
   ONEC_PASSWORD:
     required: true
     description: 1C portal password
-  ONESCRIPT_VERSION:
-    default: '2.0.2'
-    description: OneScript version
   is_default_branch:
     default: 'false'
 
@@ -31,32 +25,9 @@ outputs:
 runs:
   using: composite
   steps:
-    - name: Compute EDT base image
-      id: edt-base
-      shell: bash
-      run: |
-        if [[ "${{ inputs.EDT_VERSION }}" == 2024* ]] || [[ "${{ inputs.EDT_VERSION }}" == 2025* ]]; then
-          BASE_IMAGE="eclipse-temurin"
-          BASE_TAG="${{ inputs.OPENJDK_VERSION }}-jdk-noble"
-        else
-          BASE_IMAGE="eclipse-temurin"
-          BASE_TAG="11-jdk-focal"
-        fi
-        { echo "base_image=${BASE_IMAGE}"; echo "base_tag=${BASE_TAG}"; } >> "$GITHUB_OUTPUT"
-
-    - name: Build image (oscript-downloader)
-      id: build-oscript-downloader
-      uses: ./.github/actions/build-image
+    - id: build-installer
+      uses: ./.github/actions/build-installer
       with:
-        image_name: oscript-downloader
-        image_version: latest
-        image_desc: OneScript downloader for EDT
-        containerfile: oscript/Containerfile
-        build_args: |
-          BASE_IMAGE=ubuntu
-          BASE_TAG=24.04
-          ONESCRIPT_VERSION=${{ inputs.ONESCRIPT_VERSION }}
-          ONESCRIPT_PACKAGES=yard
         is_default_branch: ${{ inputs.is_default_branch }}
 
     - name: Build image (edt)
@@ -65,13 +36,12 @@ runs:
       with:
         image_name: edt
         image_version: ${{ inputs.EDT_VERSION }}
-        image_desc: 1C:Enterprise Development Tools
+        image_title: 1C:Enterprise Development Tools
         containerfile: edt/Containerfile
         build_args: |
-          ONEC_USERNAME=${{ inputs.ONEC_USERNAME }}
-          ONEC_PASSWORD=${{ inputs.ONEC_PASSWORD }}
           EDT_VERSION=${{ inputs.EDT_VERSION }}
-          OPENJDK_VERSION=${{ inputs.OPENJDK_VERSION }}
-          BASE_IMAGE=${{ steps.edt-base.outputs.base_image }}
-          BASE_TAG=${{ steps.edt-base.outputs.base_tag }}
+          INSTALLER_IMAGE=${{ steps.build-installer.outputs.image-with-tag }}
+        secrets: |
+          onec_username=${{ inputs.ONEC_USERNAME }}
+          onec_password=${{ inputs.ONEC_PASSWORD }}
         is_default_branch: ${{ inputs.is_default_branch }}

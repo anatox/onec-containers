@@ -1,15 +1,21 @@
-# Описание
+# onec-containers
 
 [![forthebadge](http://forthebadge.com/images/badges/built-with-love.svg)](http://forthebadge.com)
 
-В данном репозитории находятся файлы для сборки образов [Docker](https://www.docker.com) с платформой [1С:Предприятие](http://v8.1c.ru) 8.3.
+В данном репозитории находятся файлы для сборки образов OCI-контейнеров с платформой [1С:Предприятие](http://v8.1c.ru) 8.3.
 
 ## Оглавление
+
+<!-- TOC -->
 
 - [Описание](#описание)
   - [Оглавление](#оглавление)
   - [Использование](#использование)
-  - [Как сбилдить образы](#как-сбилдить-образы)
+  - [Сборка через git-теги CI](#сборка-через-git-теги-ci)
+    - [Формат тегов](#формат-тегов)
+    - [Примеры](#примеры)
+    - [Гигиена локального клона](#гигиена-локального-клона)
+  - [Локальная сборка](#локальная-сборка)
   - [Как использовать готовые дистрибутивы](#как-использовать-готовые-дистрибутивы)
   - [Как использовать образы в Jenkins в режиме Docker Swarm](#как-использовать-образы-в-jenkins-в-режиме-docker-swarm)
     - [Настройка nethasp.ini](#настройка-nethaspini)
@@ -27,64 +33,111 @@
   - [vanessa-runner](#vanessa-runner)
   - [EDT](#edt)
   - [Исполнитель](#исполнитель)
-  - [Локальное тестирование CI (act)](#локальное-тестирование-ci-act)
+  - [Локальное тестирование CI act](#локальное-тестирование-ci-act)
     - [Установка](#установка)
     - [Запуск отдельной задачи](#запуск-отдельной-задачи)
     - [Параметры](#параметры)
     - [Публикация образов](#публикация-образов)
     - [Известные особенности](#известные-особенности)
   - [Toolbox-образы для distrobox](#toolbox-образы-для-distrobox)
-    - [Сборка CI (GitHub Actions)](#сборка-ci-github-actions)
-    - [Локальная отладочная сборка client-toolbox](#локальная-отладочная-сборка-client-toolbox)
-    - [Использование с distrobox](#использование-с-distrobox)
+    - [Сборка CI GitHub Actions](#сборка-ci-github-actions)
+    - [Локальная сборка Toolbox-образов](#локальная-сборка-toolbox-образов)
     - [Проверка подписи образа](#проверка-подписи-образа)
+
+<!-- /TOC -->
 
 ## Использование
 
 В терминале введите:
 
-Команда Linux:
-
 ```bash
-# для Linux
-$ cp .onec.env.example .onec.env
+$ cp .envrc.example .envrc
 ```
 
-```batch
-:: для Windows
-copy .onec.env.bat.example env.bat
-```
-W
-Скорректируйте файл `.onec.env` в соответствии со своим окружением:
+Скорректируйте файл `.envrc` в соответствии со своим окружением:
 
 - ONEC_USERNAME - учётная запись на [releases.1c.ru](https://releases.1c.ru)
 - ONEC_PASSWORD - пароль для учётной записи на [releases.1c.ru](https://releases.1c.ru)
-- ONEC_VERSION - версия платформы 1С:Предприятия 8.3, которая будет в образе
-- ONESCRIPT_VERSION - версия образа `OneScript` для сборки `oscript-downloader`
-- EDT_VERSION - версия EDT. Обязательно заполнять только при сборке образов с EDT или при использовании замеров покрытия (см. `COVERAGE41C_VERSION`)
-- OPENJDK_VERSION - версия JDK (temurin)
-- DOCKER_REGISTRY_URL - Адрес Docker-registry в котором будут храниться образы
+- ONEC_VERSION - версия платформы 1С:Предприятия для сборки образов платформы
+- ONESCRIPT_VERSION - версия OneScript для сборки `oscript`/`onec-installer`
+- EDT_VERSION - версия EDT для сборки образов EDT или при использовании замеров покрытия (см. `COVERAGE41C_VERSION`)
+- CONTAINER_REGISTRY_URL - адрес container-registry для публикации образов
 - COVERAGE41C_VERSION - версия Coverage41C
 Используется при сборке агента скриптами `build-base-*-jenkins-coverage-agent.*`.
 - DEV1C_EXECUTOR_API_KEY - токен для api скачивания 1С:Исполнитель с сайта developer.1c.ru
 - EXECUTOR_VERSION - версия 1С:Исполнитель для сборки
-- TEST_UTILS_EXTRA_PACKAGES - дополнительные пакеты, которые будут установлены при сборке `test-utils` и которые будут доступны в финальном образе
+- TEST_UTILS_EXTRA_PACKAGES - дополнительные пакеты для `test-utils`
+- NO_CACHE - установить в `true` для сборки без кеша
+- PUSH - установить в `true` для публикации образов в registry
 
 Затем экспортируйте все необходимые переменные:
 
 ```bash
-# для Linux
-$ source .onec.env
+source .envrc
 ```
 
-```batch
-:: для Windows
-env.bat
+Либо активировать автозагрузку с помощью [direnv](https://direnv.net/):
+
+```bash
+direnv allow
 ```
 
-## Как сбилдить образы
+## Сборка через git-теги (CI)
 
-:point_up: Запустите последовательно скрипты для сборки образов. Для публикации в реестр передайте `PUSH=true DOCKER_REGISTRY_URL=<registry>`.
+Самый простой способ запустить сборку конкретного пакета — пушнуть git-тег в формате:
+
+```
+packages/<component>/v<version>
+```
+
+Тег резолвится в следующий номер сборки `-rN` (всегда инкрементируется), собирается образ, и plain-тег удаляется с origin. На origin остаются только immutable `-rN` теги.
+
+### Формат тегов
+
+| Компонент | Тег | Собираемые образы |
+|---|---|---|
+| `server` | `packages/server/v8.5.1.1343` | `onec-server:8.5.1.1343-r1` |
+| `executor` | `packages/executor/v7.0.3.3` | `executor:7.0.3.3-r1` |
+| `client-toolbox` | `packages/client-toolbox/v8.5.1.1343` | `client-toolbox:8.5.1.1343-r1` |
+| `edt-agent` | `packages/edt-agent/v2025.2.6` | `edt`, `edt-s6`, `edt-agent` → `2025.2.6-r1` |
+| `edt-agent-k8s` | `packages/edt-agent-k8s/v2025.2.6` | то же для k8s |
+| `oscript-agent` | `packages/oscript-agent/v2.0.2` | `oscript-jdk`, `oscript-jdk-s6`, `oscript-agent` → `2.0.2-r1` |
+| `oscript-agent-k8s` | `packages/oscript-agent-k8s/v2.0.2` | то же для k8s |
+| `coverage-agent` | `packages/coverage-agent/v8.5.1.1343` | `base-jenkins-coverage-agent:8.5.1.1343-r1` |
+| `coverage-agent-k8s` | `packages/coverage-agent-k8s/v8.5.1.1343` | то же для k8s |
+| `edt-toolbox` | `packages/edt-toolbox/v2025.2.6-client8.5.1.1343` | `edt-toolbox:2025.2.6-base-r1` + `edt-toolbox:2025.2.6-client8.5.1.1343-r1` |
+| `edt-toolbox` | `packages/edt-toolbox/v2025.2.6` | `edt-toolbox:2025.2.6-base-r1` (только EDT) |
+
+### Примеры
+
+```bash
+# Первая сборка сервера 8.5.1.1343
+git tag packages/server/v8.5.1.1343
+git push origin packages/server/v8.5.1.1343
+# → строится onec-server:8.5.1.1343-r1, тег -r1 остаётся на origin
+
+# Следующая сборка той же версии (тот же самый git push)
+git push origin packages/server/v8.5.1.1343
+# → строится onec-server:8.5.1.1343-r2
+
+# Явная сборка с конкретным номером
+git tag packages/server/v8.5.1.1343-r5
+git push origin packages/server/v8.5.1.1343-r5
+# → onec-server:8.5.1.1343-r5, тег остаётся на origin без изменений
+
+# EDT toolbox с клиентом
+git tag packages/edt-toolbox/v2025.2.6-client8.5.1.1343
+git push origin packages/edt-toolbox/v2025.2.6-client8.5.1.1343
+# → edt-toolbox:2025.2.6-base-r1 + edt-toolbox:2025.2.6-client8.5.1.1343-r1
+```
+
+### Гигиена локального клона
+
+После сборки plain-тег удаляется с origin, но остаётся в локальном клоне (`git fetch` не чистит теги по умолчанию). Это безвредно — следующий `git push` тега просто пересоздаст его на origin, что означает "собрать ещё раз". Для очистки: `git fetch --prune --tags origin`.
+
+## Локальная сборка
+
+:point_up: Запустите последовательно скрипты для сборки образов. Для публикации в реестр передайте `PUSH=true CONTAINER_REGISTRY_URL=<registry>`.
 
 1. Если вам нужны образы для использования в docker-swarm:
 
@@ -123,9 +176,9 @@ env.bat
 [(Наверх)](#оглавление)
 
 ```bash
-docker buildx build --load \
-  --build-arg ONEC_USERNAME=${ONEC_USERNAME} \
-  --build-arg ONEC_PASSWORD=${ONEC_PASSWORD} \
+buildah build \
+  --secret=id=onec_username,env=ONEC_USERNAME \
+  --secret=id=onec_password,env=ONEC_PASSWORD \
   --build-arg ONEC_VERSION=${ONEC_VERSION} \
   -t localhost/onec-server:${ONEC_VERSION} \
   -f server/Containerfile .
@@ -136,11 +189,11 @@ docker buildx build --load \
 [(Наверх)](#оглавление)
 
 ```bash
-docker buildx build --load \
-  --build-arg ONEC_USERNAME=${ONEC_USERNAME} \
-  --build-arg ONEC_PASSWORD=${ONEC_PASSWORD} \
+buildah build \
+  --secret=id=onec_username,env=ONEC_USERNAME \
+  --secret=id=onec_password,env=ONEC_PASSWORD \
   --build-arg ONEC_VERSION=${ONEC_VERSION} \
-  --build-arg nls_enabled=true \
+  --build-arg NLS_ENABLED=true \
   -t localhost/onec-server-nls:${ONEC_VERSION} \
   -f server/Containerfile .
 ```
@@ -150,9 +203,9 @@ docker buildx build --load \
 [(Наверх)](#оглавление)
 
 ```bash
-docker buildx build --load \
-  --build-arg ONEC_USERNAME=${ONEC_USERNAME} \
-  --build-arg ONEC_PASSWORD=${ONEC_PASSWORD} \
+buildah build \
+  --secret=id=onec_username,env=ONEC_USERNAME \
+  --secret=id=onec_password,env=ONEC_PASSWORD \
   --build-arg ONEC_VERSION=${ONEC_VERSION} \
   -t localhost/onec-client:${ONEC_VERSION} \
   -f client/Containerfile .
@@ -164,7 +217,7 @@ docker buildx build --load \
 
 ```bash
 # Предварительно соберите onec-client и onec-client-s6 (см. build-base-*-jenkins-agent.sh)
-docker buildx build --load \
+buildah build \
   --build-arg BASE_IMAGE=localhost/onec-client-s6 \
   --build-arg BASE_TAG=${ONEC_VERSION} \
   -t localhost/onec-client-vnc:${ONEC_VERSION} \
@@ -176,11 +229,11 @@ docker buildx build --load \
 [(Наверх)](#оглавление)
 
 ```bash
-docker buildx build --load \
-  --build-arg ONEC_USERNAME=${ONEC_USERNAME} \
-  --build-arg ONEC_PASSWORD=${ONEC_PASSWORD} \
+buildah build \
+  --secret=id=onec_username,env=ONEC_USERNAME \
+  --secret=id=onec_password,env=ONEC_PASSWORD \
   --build-arg ONEC_VERSION=${ONEC_VERSION} \
-  --build-arg nls_enabled=true \
+  --build-arg NLS_ENABLED=true \
   -t localhost/onec-client-nls:${ONEC_VERSION} \
   -f client/Containerfile .
 ```
@@ -190,9 +243,9 @@ docker buildx build --load \
 [(Наверх)](#оглавление)
 
 ```bash
-docker buildx build --load \
-  --build-arg ONEC_USERNAME=${ONEC_USERNAME} \
-  --build-arg ONEC_PASSWORD=${ONEC_PASSWORD} \
+buildah build \
+  --secret=id=onec_username,env=ONEC_USERNAME \
+  --secret=id=onec_password,env=ONEC_PASSWORD \
   --build-arg ONEC_VERSION=${ONEC_VERSION} \
   -t localhost/onec-thin-client:${ONEC_VERSION} \
   -f thin-client/Containerfile .
@@ -203,11 +256,11 @@ docker buildx build --load \
 [(Наверх)](#оглавление)
 
 ```bash
-docker buildx build --load \
-  --build-arg ONEC_USERNAME=${ONEC_USERNAME} \
-  --build-arg ONEC_PASSWORD=${ONEC_PASSWORD} \
+buildah build \
+  --secret=id=onec_username,env=ONEC_USERNAME \
+  --secret=id=onec_password,env=ONEC_PASSWORD \
   --build-arg ONEC_VERSION=${ONEC_VERSION} \
-  --build-arg nls_enabled=true \
+  --build-arg NLS_ENABLED=true \
   -t localhost/onec-thin-client-nls:${ONEC_VERSION} \
   -f thin-client/Containerfile .
 ```
@@ -217,9 +270,9 @@ docker buildx build --load \
 [(Наверх)](#оглавление)
 
 ```bash
-docker buildx build --load \
-  --build-arg ONEC_USERNAME=${ONEC_USERNAME} \
-  --build-arg ONEC_PASSWORD=${ONEC_PASSWORD} \
+buildah build \
+  --secret=id=onec_username,env=ONEC_USERNAME \
+  --secret=id=onec_password,env=ONEC_PASSWORD \
   --build-arg ONEC_VERSION=${ONEC_VERSION} \
   -t localhost/onec-crs:${ONEC_VERSION} \
   -f crs/Containerfile .
@@ -230,7 +283,7 @@ docker buildx build --load \
 [(Наверх)](#оглавление)
 
 ```bash
-docker buildx build --load \
+buildah build \
   --build-arg ONEC_VERSION=${ONEC_VERSION} \
   -t localhost/onec-rac-gui:${ONEC_VERSION}-1.0.1 \
   -f rac-gui/Containerfile .
@@ -241,7 +294,7 @@ docker buildx build --load \
 [(Наверх)](#оглавление)
 
 ```bash
-docker buildx build --load \
+buildah build \
   --build-arg ONEC_VERSION=${ONEC_VERSION} \
   -t localhost/gitsync:3.0.0 \
   -f gitsync/Containerfile .
@@ -252,7 +305,7 @@ docker buildx build --load \
 [(Наверх)](#оглавление)
 
 ```bash
-docker buildx build --load \
+buildah build \
   -t localhost/oscript:latest \
   -f oscript/Containerfile .
 ```
@@ -262,7 +315,7 @@ docker buildx build --load \
 [(Наверх)](#оглавление)
 
 ```bash
-docker buildx build --load \
+buildah build \
   -t localhost/runner:1.7.0 \
   -f vanessa-runner/Containerfile .
 ```
@@ -272,9 +325,9 @@ docker buildx build --load \
 [(Наверх)](#оглавление)
 
 ```bash
-docker buildx build --load \
-    --build-arg ONEC_USERNAME=${ONEC_USERNAME} \
-    --build-arg ONEC_PASSWORD=${ONEC_PASSWORD} \
+buildah build \
+    --secret=id=onec_username,env=ONEC_USERNAME \
+    --secret=id=onec_password,env=ONEC_PASSWORD \
     --build-arg EDT_VERSION=${EDT_VERSION} \
     -t localhost/edt:${EDT_VERSION} \
     -f edt/Containerfile .
@@ -305,7 +358,7 @@ brew install act
 ### Запуск отдельной задачи
 
 ```bash
-# Экспорт переменных окружения (включая ONEC_USERNAME, ONEC_PASSWORD)
+# Экспорт переменных окружения (без использования direnv)
 source .envrc
 
 # Сборка одного образа (например, server)
@@ -315,7 +368,7 @@ act -j server push \
   --container-architecture linux/amd64 \
   --secret ONEC_USERNAME="$ONEC_USERNAME" \
   --secret ONEC_PASSWORD="$ONEC_PASSWORD" \
-  --secret GITHUB_TOKEN="${DOCKER_PASSWORD}" \
+  --secret GITHUB_TOKEN="$(gh auth token)" \
   --concurrent-jobs 1
 ```
 
@@ -323,19 +376,19 @@ act -j server push \
 
 | Параметр | Назначение |
 |---|---|
-| `-j <job>` | Имя задачи из `build.yml`: `server`, `executor`, `edt-swarm-agent`, `edt-k8s-agent`, `oscript-swarm-agent`, `oscript-k8s-agent`, `base-swarm-coverage-agent`, `base-k8s-coverage-agent` |
+| `-j <job>` | Имя workflow: `server`, `executor`, `edt-swarm-agent`, `edt-k8s-agent`, `oscript-swarm-agent`, `oscript-k8s-agent`, `base-swarm-coverage-agent`, `base-k8s-coverage-agent` |
 | `-P ubuntu-latest=...` | Образ-раннер (medium-вариант совместим с большинством actions) |
 | `--container-architecture linux/amd64` | Архитектура контейнера (требуется для совместимости со сборочными образами) |
 | `--concurrent-jobs 1` | Обход бага конкурентности в act < 0.2.89 |
-| `--secret GITHUB_TOKEN=...` | Токен для `docker login` в ghcr.io при пуше |
+| `--secret GITHUB_TOKEN=...` | Токен для `podman login` в ghcr.io при пуше |
 | `-n` | Dry-run: только проверка валидности workflow без реальной сборки |
 
 ### Публикация образов
 
-При симуляции события `push` workflow публикует образы в реестр. Чтобы собрать только локально без пуша, используйте `pull_request`:
+При симуляции события `push` workflow публикует образы в реестр. Чтобы собрать только локально без пуша, используйте `workflow_dispatch`:
 
 ```bash
-act -j server pull_request \
+act -j server workflow_dispatch \
   --directory . \
   -P ubuntu-latest=catthehacker/ubuntu:act-latest \
   --container-architecture linux/amd64 \
@@ -348,7 +401,7 @@ act -j server pull_request \
 
 - **act v0.2.88**: обязателен `--concurrent-jobs 1` из-за бага `concurrent map iteration and map write`
 - **Artifacts**: предупреждение `Unable to get the ACTIONS_RUNTIME_TOKEN env variable` безвредно — влияет только на загрузку build-записей в GitHub
-- **Secrets in ARG**: Containerfile использует `ARG ONEC_PASSWORD`, что вызывает предупреждение Docker о секретах в build-args
+- **Secrets**: Данные учётной записи 1С передаются через `--secret` (buildah build) или `--mount=type=secret` (Containerfile), не попадая в слои образа
 - **free-disk-space**: pre-build шаг пытается очистить диск через `apt-get remove` и `docker image prune` — в контейнере act это может занимать лишнее время
 
 ## Toolbox-образы для distrobox
@@ -360,14 +413,14 @@ act -j server pull_request \
 
 ### Сборка CI (GitHub Actions)
 
-Toolbox-образы интегрированы в общий модульный пайплайн `.github/workflows/build.yml` и управляются отдельными reusable workflows:
+Toolbox-образы собираются через отдельные workflows, запускаемые по git-тегам:
 
-- `.github/workflows/build-client-toolbox.yml` — сборка `client-toolbox`
-- `.github/workflows/build-edt-toolbox.yml` — сборка `edt-toolbox`
+- `.github/workflows/build-client-toolbox.yml` — сборка `client-toolbox` (тег `packages/client-toolbox/v*`)
+- `.github/workflows/build-edt-toolbox.yml` — сборка `edt-toolbox` (тег `packages/edt-toolbox/v*`)
 
-Каждый workflow собирает цепочку `oscript-downloader → toolbox-образ` через композитный action `build-image`. Публикация в `ghcr.io/<owner>/` и подпись cosign опциональны (управляются переменной `publish`).
+Каждый workflow собирает цепочку `oscript-downloader → toolbox-образ` через композитный action `build-image`. Публикация в `ghcr.io/<owner>/` и подпись cosign опциональны (управляются через тег или параметр `publish` в `workflow_dispatch`).
 
-Включение/выключение сборки контролируется переменными репозитория:
+Для PR в `main` сборка автоматически проверяется (без публикации). Включение/выключение PR-сборки контролируется переменными репозитория:
 
 | Переменная | Назначение |
 |---|---|
@@ -381,36 +434,41 @@ Toolbox-образы интегрированы в общий модульный
 | `ONEC_USERNAME` | Логин на releases.1c.ru |
 | `ONEC_PASSWORD` | Пароль на releases.1c.ru |
 
-Необходимые переменные репозитория (Variables — опционально, используются defaults):
+Необходимые переменные репозитория (Variables — опционально, используются defaults из workflow):
 
-| Переменная | По умолчанию | Назначение |
-|---|---|---|
-| `ONEC_VERSION` | `8.5.1.1343` | Версия платформы 1С для client-toolbox |
-| `EDT_VERSION` | `2025.2.6` | Версия EDT для edt-toolbox |
-| `OPENJDK_VERSION` | `17` | Версия JDK для стадии установки EDT |
+| Переменная | Назначение |
+|---|---|
+| `BUILD_CLIENT_TOOLBOX` | `!= 'false'` включает PR-сборку client-toolbox |
+| `BUILD_EDT_TOOLBOX` | `!= 'false'` включает PR-сборку edt-toolbox |
 
-### Локальная сборка
+Workflow defaults для версий (используются при `pull_request` и `workflow_dispatch` без явного указания):
+
+| Компонент | Значение по умолчанию |
+|---|---|
+| Платформа 1С | `8.5.1.1343` |
+| EDT | `2025.2.6` |
+| OneScript | `2.0.2` |
+| Executor | `7.0.3.3` |
+
+### Локальная сборка Toolbox-образов
 
 ```bash
-# Загрузите переменные окружения
+# Экспорт переменных окружения (без использования direnv)
 source .envrc
 
-# Собрать client-toolbox
+# Сборка client-toolbox
 ./build-client-toolbox.sh
 
-# Собрать edt-toolbox
+# Сборка edt-toolbox
 ./build-edt-toolbox.sh
 
 # Сборка + пуш в реестр
-PUSH=true DOCKER_REGISTRY_URL=ghcr.io/<owner> ./build-edt-toolbox.sh
+PUSH=true CONTAINER_REGISTRY_URL=ghcr.io/<owner> ./build-edt-toolbox.sh
 ```
 
-Для использования с distrobox после сборки через Docker:
+Для использования с distrobox после сборки:
 
 ```bash
-# Скопировать образ из Docker-демона в хранилище Podman
-podman pull docker-daemon:localhost/edt-toolbox:latest
-
 # Создать и войти в контейнер
 distrobox create --image localhost/edt-toolbox:latest --name edt-toolbox
 distrobox enter edt-toolbox

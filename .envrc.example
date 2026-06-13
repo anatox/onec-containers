@@ -1,0 +1,11 @@
+export ONEC_USERNAME=onec
+export ONEC_PASSWORD=onec
+
+export CONTAINER_REGISTRY_URL=container-registry:5000
+
+export YARD_VERSION=1.9.2
+
+export EXECUTOR_VERSION=3.0.2.2
+export DEV1C_EXECUTOR_API_KEY=YOUR_API_KEY_HERE
+
+export TEST_UTILS_EXTRA_PACKAGES="xdotool"

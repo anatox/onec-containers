@@ -1,44 +1,55 @@
 name: Build executor
 
+run-name: ${{ github.ref_type == 'tag' && format('Build {0}', github.ref_name) || 'Build executor' }}
+
 on:
-  workflow_call:
-    inputs:
-      build_enabled:
-        type: boolean
-        default: true
-    secrets:
-      DEV1C_EXECUTOR_API_KEY:
-        required: true
+  push:
+    tags:
+      - 'packages/executor/v*'
+  pull_request:
+    branches: [main]
   workflow_dispatch:
     inputs:
+      executor_version:
+        description: 1C:Executor version
+        type: string
+        default: '7.0.3.3'
       publish:
         type: boolean
         default: false
 
 permissions:
-  contents: read
+  contents: write
   packages: write
 
 jobs:
   build:
-    if: github.event_name == 'workflow_dispatch' || inputs.build_enabled
-    runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request' || vars.BUILD_EXECUTOR != 'false'
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v6
+        with:
+          fetch-depth: ${{ github.ref_type == 'tag' && '0' || '1' }}
 
-      - uses: ./.github/actions/pre-build
+      - id: pre-build
+        uses: ./.github/actions/pre-build
+        with:
+          component: executor
 
       - name: Build image (executor)
         id: build-executor
         uses: ./.github/actions/build-image
         with:
           image_name: executor
-          image_version: '7.0.3.3'
-          image_desc: 1C DevOps Executor
+          image_version: ${{ steps.pre-build.outputs.image_tag || inputs.executor_version }}
+          image_title: 1C DevOps Executor
           containerfile: executor/Containerfile
           secrets: |
             dev1c_executor_api_key=${{ secrets.DEV1C_EXECUTOR_API_KEY }}
           build_args: |
-            EXECUTOR_VERSION=7.0.3.3
-          is_default_branch: ${{ github.ref == 'refs/heads/main' }}
-          publish: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.publish) || 'false' }}
+            EXECUTOR_VERSION=${{ steps.pre-build.outputs.version || inputs.executor_version }}
+          is_default_branch: ${{ steps.pre-build.outputs.is_default_branch == 'true' }}
+          publish: ${{ github.ref_type == 'tag' || (github.event_name == 'workflow_dispatch' && inputs.publish) }}
+          registry_url: ${{ vars.CONTAINER_REGISTRY_URL }}
+          registry_username: ${{ vars.CONTAINER_REGISTRY_USERNAME }}
+          registry_password: ${{ secrets.CONTAINER_REGISTRY_PASSWORD }}

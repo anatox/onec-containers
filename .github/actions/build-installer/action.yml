@@ -1,0 +1,50 @@
+name: Build onec-installer
+description: Build the onec-installer base image with yard and dependencies
+
+inputs:
+  is_default_branch:
+    default: 'false'
+    description: Whether this is the default branch (enables 'latest' tag)
+  onescript_version:
+    default: '2.0.2'
+    description: OneScript version
+  yard_version:
+    default: '1.9.2'
+    description: Yard (1C distribution downloader) version
+
+outputs:
+  image:
+    value: ${{ steps.build-installer.outputs.image }}
+    description: Image name (without registry prefix)
+  image-with-tag:
+    value: ${{ steps.build-installer.outputs.image-with-tag }}
+    description: Image name with tag
+
+runs:
+  using: composite
+  steps:
+    - name: Build image (oscript)
+      id: build-oscript
+      uses: ./.github/actions/build-image
+      with:
+        image_name: oscript
+        image_version: ${{ inputs.onescript_version }}
+        image_title: OneScript downloader
+        containerfile: oscript/Containerfile
+        build_args: |
+          BASE_IMAGE=ubuntu:26.04
+          ONESCRIPT_VERSION=${{ inputs.onescript_version }}
+        is_default_branch: ${{ inputs.is_default_branch }}
+
+    - name: Build image (onec-installer)
+      id: build-installer
+      uses: ./.github/actions/build-image
+      with:
+        image_name: onec-installer
+        image_version: ${{ inputs.yard_version }}
+        image_title: 1C installer helper
+        containerfile: installer/Containerfile
+        build_args: |
+          BASE_IMAGE=${{ steps.build-oscript.outputs.image-with-tag }}
+          YARD_VERSION=${{ inputs.yard_version }}
+        is_default_branch: ${{ inputs.is_default_branch }}

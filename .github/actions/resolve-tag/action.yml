@@ -1,0 +1,148 @@
+name: Resolve Tag
+description: |
+  Parses a git tag in format packages/<component>/v<version>[-r<buildnum>],
+  resolves the next build number (always incrementing), pushes the resolved
+  -rN tag, deletes the plain tag from origin, and exports version/build_num
+  for downstream build steps.
+
+  Compound tags use a dash-separated dependency suffix:
+    packages/edt-toolbox/v2025.2.6-client8.5.1.1343
+  Parse as: version_main=2025.2.6, version_deps=["client8.5.1.1343"]
+
+inputs:
+  tag_ref:
+    required: true
+    description: The full git ref from github.ref (e.g. refs/tags/packages/server/v8.5.1.1343-r1)
+  component:
+    required: true
+    description: Expected component name (validates the tag matches this workflow)
+
+outputs:
+  version:
+    value: ${{ steps.parse.outputs.version }}
+    description: Full parsed version string without -rN (e.g. 8.5.1.1343 or 2025.2.6-client8.5.1.1343)
+  version_main:
+    value: ${{ steps.parse.outputs.version_main }}
+    description: Main version (first segment before any dep suffix), e.g. 2025.2.6
+  version_deps:
+    value: ${{ steps.parse.outputs.version_deps }}
+    description: Space-separated dep strings keyed by type, e.g. "client8.5.1.1343 coverage2.7.3". Empty if none.
+  build_num:
+    value: ${{ steps.parse.outputs.build_num }}
+    description: Resolved build number (e.g. 1, 2, 3)
+  image_tag:
+    value: ${{ steps.parse.outputs.image_tag }}
+    description: Full image tag (version-r<build_num>), e.g. 8.5.1.1343-r1 or 2025.2.6-client8.5.1.1343-r1
+
+runs:
+  using: composite
+  steps:
+    - name: Parse and resolve tag
+      id: parse
+      shell: bash
+      env:
+        TAG_REF: ${{ inputs.tag_ref }}
+        COMPONENT: ${{ inputs.component }}
+      run: |
+        set -euo pipefail
+
+        TAG="${TAG_REF#refs/tags/}"
+        echo "::group::Resolving tag: ${TAG}"
+
+        # Validate tag format: packages/<component>/v<version>[-r<buildnum>]
+        if [[ ! "$TAG" =~ ^packages/${COMPONENT}/ ]]; then
+          echo "::error::Tag '${TAG}' does not match expected component '${COMPONENT}'"
+          exit 1
+        fi
+
+        TAG_BODY="${TAG#packages/${COMPONENT}/}"
+
+        # --- Parse build number (-rN suffix) ---
+        if [[ "$TAG_BODY" =~ ^v(.+)-r([0-9]+)$ ]]; then
+          FULL_VERSION="${BASH_REMATCH[1]}"
+          BUILD_NUM="${BASH_REMATCH[2]}"
+          echo "Explicit build number detected: -r${BUILD_NUM}"
+          RESOLVE=false
+        elif [[ "$TAG_BODY" =~ ^v(.+)$ ]]; then
+          FULL_VERSION="${BASH_REMATCH[1]}"
+          RESOLVE=true
+        else
+          echo "::error::Tag '${TAG}' has unexpected format. Expected: packages/${COMPONENT}/v<version>[-r<buildnum>]"
+          exit 1
+        fi
+
+        # --- Parse main version and dependency suffixes ---
+        # Pattern: v<main>[-<depkey><depver>]*[-r<N>]
+        # Known dep keys: client, server, coverage
+        REMAINDER="$FULL_VERSION"
+        VERSION_MAIN=""
+        declare -a DEPS=()
+
+        # Extract main version: digits separated by dots, up to first -<depkey> or end
+        if [[ "$REMAINDER" =~ ^([0-9]+(\.[0-9]+)*)(-(client|server|coverage)[0-9].*)?$ ]]; then
+          VERSION_MAIN="${BASH_REMATCH[1]}"
+          REMAINDER="${REMAINDER#${VERSION_MAIN}}"
+        fi
+
+        # Process chain of -<depkey><depver> suffixes
+        while [[ "$REMAINDER" =~ ^-(client|server|coverage)([0-9]+(\.[0-9]+)*)(.*)$ ]]; do
+          DEP_KEY="${BASH_REMATCH[1]}"
+          DEP_VAL="${BASH_REMATCH[2]}"
+          REMAINDER="${BASH_REMATCH[4]}"
+          DEPS+=("${DEP_KEY}${DEP_VAL}")
+        done
+
+        echo "version_main=${VERSION_MAIN}" >> "$GITHUB_OUTPUT"
+        echo "version=${FULL_VERSION}" >> "$GITHUB_OUTPUT"
+        echo "version_deps=${DEPS[*]}" >> "$GITHUB_OUTPUT"
+
+        # --- Resolve build number if plain tag ---
+        if [[ "$RESOLVE" == "true" ]]; then
+          echo "Plain tag detected. Full version: ${FULL_VERSION}"
+
+          # Query existing -r* tags for this exact version string
+          TAG_PREFIX="packages/${COMPONENT}/v${FULL_VERSION}-r"
+          echo "Querying existing tags: ${TAG_PREFIX}*"
+          EXISTING_TAGS=$(git tag -l "${TAG_PREFIX}*" --sort=-v:refname 2>/dev/null || echo "")
+
+          if [[ -z "$EXISTING_TAGS" ]]; then
+            BUILD_NUM=1
+            echo "No existing build tags found. Starting at -r1"
+          else
+            MAX_N=$(echo "$EXISTING_TAGS" | sed -n 's|.*-r\([0-9]\+\)$|\1|p' | sort -n | tail -1)
+            if [[ -z "$MAX_N" ]]; then
+              BUILD_NUM=1
+            else
+              BUILD_NUM=$((MAX_N + 1))
+            fi
+            echo "Highest existing build number: -r${MAX_N}. Resolving to -r${BUILD_NUM}"
+          fi
+
+          RESOLVED_TAG="packages/${COMPONENT}/v${FULL_VERSION}-r${BUILD_NUM}"
+
+          # Create resolved -rN tag locally (points at the same commit as the trigger tag)
+          git tag "${RESOLVED_TAG}" HEAD
+
+          # Push resolved -rN tag and delete plain tag in one atomic push
+          echo "Pushing resolved tag: ${RESOLVED_TAG}"
+          PUSH_ERROR=$(mktemp)
+          if ! git push origin "${RESOLVED_TAG}" ":${TAG}" 2>"${PUSH_ERROR}"; then
+            ERROR_MSG=$(cat "${PUSH_ERROR}")
+            rm -f "${PUSH_ERROR}"
+            if echo "$ERROR_MSG" | grep -q '\[rejected\]'; then
+              echo "::error::Concurrent build resolved the same -r${BUILD_NUM}. Re-push the trigger tag to retry."
+              exit 1
+            fi
+            echo "::error::Failed to push resolved tag: ${ERROR_MSG}"
+            exit 1
+          fi
+          rm -f "${PUSH_ERROR}"
+
+          IMAGE_TAG="${FULL_VERSION}-r${BUILD_NUM}"
+        else
+          IMAGE_TAG="${FULL_VERSION}-r${BUILD_NUM}"
+        fi
+
+        echo "build_num=${BUILD_NUM}" >> "$GITHUB_OUTPUT"
+        echo "image_tag=${IMAGE_TAG}" >> "$GITHUB_OUTPUT"
+        echo "::endgroup::"

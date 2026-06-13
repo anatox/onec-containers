@@ -1,5 +1,5 @@
 name: Build Image
-description: Metadata + docker buildx build + push+sign for one container image
+description: Metadata + buildah build + push-to-registry + cosign sign for one container image
 
 inputs:
   image_name:
@@ -11,12 +11,15 @@ inputs:
   image_desc:
     default: ''
     description: Image description for OCI labels
+  image_title:
+    default: ''
+    description: Image title for OCI label (falls back to image_name)
   containerfile:
     required: true
     description: Path to Containerfile (e.g. client/Containerfile)
   build_args:
     default: ''
-    description: Multiline build-arg string
+    description: Multiline build-arg string (newline-separated key=value)
   secrets:
     default: ''
     description: Multiline id=value secrets (used with RUN --mount=type=secret)
@@ -25,7 +28,16 @@ inputs:
     description: Whether this is the default branch (enables 'latest' tag)
   publish:
     default: 'false'
-    description: Push to GHCR and sign if true
+    description: Push to registry and sign if true
+  registry_url:
+    default: ''
+    description: Container Registry URL to push to (defaults to ghcr.io)
+  registry_username:
+    default: ''
+    description: Container Registry auth username (defaults to github.actor)
+  registry_password:
+    default: ''
+    description: Container Registry auth password (defaults to github.token)
   cosign_private_key:
     default: ''
     description: Cosign private key for signing (required when publish is true)
@@ -44,59 +56,124 @@ outputs:
 runs:
   using: composite
   steps:
-    - id: meta
+    - name: Set Container Registry
+      id: registry
+      shell: bash
+      run: |
+        REGISTRY='${{ inputs.registry_url || '' }}'
+        if [ -n "$REGISTRY" ]; then
+          echo "url=${REGISTRY}" >> "$GITHUB_OUTPUT"
+          echo "prefix=${REGISTRY}/${{ github.repository_owner }}" >> "$GITHUB_OUTPUT"
+        else
+          echo "url=ghcr.io" >> "$GITHUB_OUTPUT"
+          echo "prefix=ghcr.io/${{ github.repository_owner }}" >> "$GITHUB_OUTPUT"
+        fi
+        echo "username=${{ inputs.registry_username || github.actor }}" >> "$GITHUB_OUTPUT"
+        echo "password=${{ inputs.registry_password || github.token }}" >> "$GITHUB_OUTPUT"
+
+    - name: Set image metadata
+      id: meta
       uses: docker/metadata-action@c1e51972afc2121e065aed6d45c65596fe445f3f
       with:
-        images: ghcr.io/${{ github.repository_owner }}/${{ inputs.image_name }}
+        images: ${{ steps.registry.outputs.prefix }}/${{ inputs.image_name }}
         tags: |
           type=raw,value=${{ inputs.image_version }}
           type=raw,value=latest,enable=${{ inputs.is_default_branch == 'true' }}
           type=sha
           type=ref,event=pr
         labels: |
-          org.opencontainers.image.source=https://github.com/${{ github.repository_owner }}/${{ inputs.image_name }}/blob/${{ github.sha }}/${{ inputs.containerfile }}
-          org.opencontainers.image.title=${{ inputs.image_name }}
+          org.opencontainers.image.vendor=${{ github.repository_owner }}
+          org.opencontainers.image.source=https://github.com/${{ github.repository }}
+          org.opencontainers.image.title=${{ inputs.image_title || inputs.image_name }}
           org.opencontainers.image.description=${{ inputs.image_desc }}
+          org.opencontainers.image.summary=${{ inputs.image_desc }}
 
-    - uses: docker/setup-buildx-action@v4
-      with:
-        driver: docker
+    - name: Populate build secrets as env vars
+      if: inputs.secrets != ''
+      shell: bash
+      run: |
+        while IFS= read -r line; do
+          [ -z "$line" ] && continue
+          echo "$line" >> "$GITHUB_ENV"
+        done <<< "${{ inputs.secrets }}"
 
-    - id: merged-build-args
+    - name: Derive extra-args from secrets
+      id: extra-args
+      if: inputs.secrets != ''
+      shell: bash
+      run: |
+        args=()
+        while IFS= read -r line; do
+          [ -z "$line" ] && continue
+          secret_id="${line%%=*}"
+          args+=("--secret=id=${secret_id},type=env")
+        done <<< "${{ inputs.secrets }}"
+        echo 'args<<_EOF_' >> "$GITHUB_OUTPUT"
+        printf '%s\n' "${args[@]}" >> "$GITHUB_OUTPUT"
+        echo '_EOF_' >> "$GITHUB_OUTPUT"
+
+    - name: Merge build args
+      id: merged-build-args
       shell: bash
       run: |
         {
           echo "args<<_EOF_"
-          echo "DOCKER_REGISTRY_URL=ghcr.io/${{ github.repository_owner }}"
-          echo '${{ inputs.build_args }}'
+          echo "${{ inputs.build_args }}"
           echo "_EOF_"
         } >> "$GITHUB_OUTPUT"
 
-    - id: build
-      uses: docker/build-push-action@v7
+    - name: Build image
+      id: build
+      uses: redhat-actions/buildah-build@v2
       with:
-        context: .
-        file: ${{ inputs.containerfile }}
+        image: ${{ inputs.image_name }}
         tags: ${{ steps.meta.outputs.tags }}
-        labels: ${{ steps.meta.outputs.labels }}
+        containerfiles: ${{ inputs.containerfile }}
         build-args: ${{ steps.merged-build-args.outputs.args }}
-        secrets: ${{ inputs.secrets }}
-        push: ${{ inputs.publish == 'true' && github.event_name != 'pull_request' }}
-        load: ${{ inputs.publish != 'true' || github.event_name == 'pull_request' }}
-        pull: false
+        labels: ${{ steps.meta.outputs.labels }}
+        extra-args: ${{ steps.extra-args.outputs.args }}
 
-    - id: image-ref
+    - name: Set image reference
+      id: image-ref
       shell: bash
       run: |
         FIRST_TAG=$(echo "${{ steps.meta.outputs.tags }}" | head -1 | tr -d '\n')
         echo "image-with-tag=${FIRST_TAG}" >> "$GITHUB_OUTPUT"
 
-    - if: inputs.publish == 'true' && inputs.cosign_private_key != '' && github.event_name != 'pull_request'
-      name: Sign image
+    - name: Login to Container Registry
+      if: inputs.publish == 'true' && github.event_name != 'pull_request'
+      uses: redhat-actions/podman-login@v1
+      with:
+        registry: ${{ steps.registry.outputs.url }}
+        username: ${{ steps.registry.outputs.username }}
+        password: ${{ steps.registry.outputs.password }}
+
+    - name: Push to Container Registry
+      if: inputs.publish == 'true' && github.event_name != 'pull_request'
+      id: push
+      uses: redhat-actions/push-to-registry@v2
+      with:
+        image: ${{ steps.build.outputs.image }}
+        tags: ${{ steps.build.outputs.tags }}
+        registry: ${{ steps.registry.outputs.prefix }}
+
+    - name: Sign image
+      if: inputs.publish == 'true' && inputs.cosign_private_key != '' && github.event_name != 'pull_request'
       shell: bash
       run: |
         cosign sign -y --key env://COSIGN_PRIVATE_KEY \
-          "ghcr.io/${{ github.repository_owner }}/${{ inputs.image_name }}@${{ steps.build.outputs.digest }}"
+          "${{ steps.registry.outputs.prefix }}/${{ inputs.image_name }}@${{ steps.build.outputs.digest }}"
       env:
         COSIGN_PRIVATE_KEY: ${{ inputs.cosign_private_key }}
         COSIGN_EXPERIMENTAL: false
+
+    - name: Clean Buildah storage
+      if: always()
+      shell: bash
+      run: |
+        echo "=== INITIAL DISK SPACE ==="
+        df -h /
+        buildah containers --all --format '{{.ContainerID}}' 2>/dev/null | xargs -r buildah rm 2>/dev/null || true
+        buildah images --filter dangling=true --format '{{.ID}}' 2>/dev/null | xargs -r buildah rmi --force 2>/dev/null || true
+        echo "=== FINAL DISK SPACE ==="
+        df -h /
