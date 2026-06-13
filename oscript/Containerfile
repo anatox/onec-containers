@@ -67,11 +67,11 @@ RUN <<EOF
   if [ -n "${ONESCRIPT_PACKAGES}" ]; then opm install ${ONESCRIPT_PACKAGES}; fi
 EOF
 
-COPY ./oscript/docker-entrypoint.sh /
+COPY ./oscript/entrypoint.sh /
 RUN <<EOF
   set -eux
-  chmod 755 /docker-entrypoint.sh
-  chmod +x /docker-entrypoint.sh
+  chmod 755 /entrypoint.sh
+  chmod +x /entrypoint.sh
 EOF
 
-ENTRYPOINT ["/docker-entrypoint.sh"]
+ENTRYPOINT ["/entrypoint.sh"]

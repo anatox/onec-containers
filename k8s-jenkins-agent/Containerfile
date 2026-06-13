@@ -1,4 +1,4 @@
-# Для сборки использован стандартный шаблон jenkins-inbound-agent https://github.com/jenkinsci/docker-agent/blob/master/debian/Dockerfile
+# Для сборки использован стандартный шаблон jenkins-inbound-agent https://github.com/jenkinsci/docker-agent/blob/master/debian/Containerfile
 # Стадию с as jre-build убрал, т.к. у нас на этот момент уже всегда есть джава в контейнере.
 ARG BASE_IMAGE
 ARG BASE_TAG
@@ -74,14 +74,14 @@ ARG user=jenkins
 
 USER root
 COPY ./k8s-jenkins-agent/jenkins-agent /usr/local/bin/jenkins-agent
-COPY ./k8s-jenkins-agent/docker-entrypoint.sh /docker-entrypoint.sh
+COPY ./k8s-jenkins-agent/entrypoint.sh /entrypoint.sh
 
 RUN <<EOF
   set -eux
   chmod +x /usr/local/bin/jenkins-agent
   ln -s /usr/local/bin/jenkins-agent /usr/local/bin/jenkins-slave
-  chmod 755 /docker-entrypoint.sh
-  chmod +x /docker-entrypoint.sh
+  chmod 755 /entrypoint.sh
+  chmod +x /entrypoint.sh
 EOF
 # USER ${user}
 
@@ -94,4 +94,4 @@ LABEL \
   org.opencontainers.image.source="https://github.com/jenkinsci/docker-agent" \
   org.opencontainers.image.licenses="MIT"
 
-ENTRYPOINT ["/docker-entrypoint.sh"]
+ENTRYPOINT ["/entrypoint.sh"]

@@ -6,7 +6,7 @@ ARG INSTALLER_BASE_TAG=${BASE_TAG}
 FROM ${DOCKER_REGISTRY_URL:+"$DOCKER_REGISTRY_URL"/}oscript-downloader:latest AS downloader
 
 # Копирование скрипта скачивания и локальных дистрибутивов
-COPY --chmod=755 ./scripts/download_yard.sh /download.sh
+COPY --chmod=755 ./scripts/installer/libexec/yard-download.sh /download.sh
 COPY ./distr /distr
 
 # Скачивание дистрибутива 1С с использованием вынесенного скрипта
@@ -87,7 +87,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     geoclue-2.0
 EOF
 
-COPY --chmod=755 ./scripts/install_new.sh /install.sh
+COPY --chmod=755 ./scripts/installer/libexec/install-packages.sh /install.sh
 COPY --from=downloader /tmp/distr /tmp/distr
 
 SHELL ["/bin/bash", "-c"]
@@ -99,7 +99,7 @@ RUN <<EOF
 EOF
 
 # create symlink to current 1c:enterprise directory
-COPY ./scripts/create-symlink-to-current-1cv8.sh /create-symlink-to-current-1cv8.sh
+COPY ./scripts/installer/libexec/create-symlinks-1cv8.sh /create-symlink-to-current-1cv8.sh
 RUN <<EOF
   set -eux
   chmod +x /create-symlink-to-current-1cv8.sh

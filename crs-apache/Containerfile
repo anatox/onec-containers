@@ -24,13 +24,13 @@ EOF
 COPY ./crs-apache/repo.1ccr /home/usr1cv8/.1cv8
 RUN mkdir -p ${REPO_DIR}
 
-COPY ./crs-apache/docker-entrypoint.sh /
+COPY ./crs-apache/entrypoint.sh /
 RUN <<EOF
   set -eux
-  chmod 755 /docker-entrypoint.sh
-  chmod +x /docker-entrypoint.sh
+  chmod 755 /entrypoint.sh
+  chmod +x /entrypoint.sh
 EOF
 
-ENTRYPOINT ["/docker-entrypoint.sh"]
+ENTRYPOINT ["/entrypoint.sh"]
 
 EXPOSE 80

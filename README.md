@@ -128,7 +128,7 @@ docker buildx build --load \
   --build-arg ONEC_PASSWORD=${ONEC_PASSWORD} \
   --build-arg ONEC_VERSION=${ONEC_VERSION} \
   -t localhost/onec-server:${ONEC_VERSION} \
-  -f server/Dockerfile .
+  -f server/Containerfile .
 ```
 
 ## Сервер с дополнительными языками
@@ -142,7 +142,7 @@ docker buildx build --load \
   --build-arg ONEC_VERSION=${ONEC_VERSION} \
   --build-arg nls_enabled=true \
   -t localhost/onec-server-nls:${ONEC_VERSION} \
-  -f server/Dockerfile .
+  -f server/Containerfile .
 ```
 
 ## Клиент
@@ -155,7 +155,7 @@ docker buildx build --load \
   --build-arg ONEC_PASSWORD=${ONEC_PASSWORD} \
   --build-arg ONEC_VERSION=${ONEC_VERSION} \
   -t localhost/onec-client:${ONEC_VERSION} \
-  -f client/Dockerfile .
+  -f client/Containerfile .
 ```
 
 ## Клиент с поддержкой VNC
@@ -168,7 +168,7 @@ docker buildx build --load \
   --build-arg BASE_IMAGE=localhost/onec-client-s6 \
   --build-arg BASE_TAG=${ONEC_VERSION} \
   -t localhost/onec-client-vnc:${ONEC_VERSION} \
-  -f client-vnc/Dockerfile .
+  -f client-vnc/Containerfile .
 ```
 
 ## Клиент с дополнительными языками
@@ -182,7 +182,7 @@ docker buildx build --load \
   --build-arg ONEC_VERSION=${ONEC_VERSION} \
   --build-arg nls_enabled=true \
   -t localhost/onec-client-nls:${ONEC_VERSION} \
-  -f client/Dockerfile .
+  -f client/Containerfile .
 ```
 
 ## Тонкий клиент
@@ -195,7 +195,7 @@ docker buildx build --load \
   --build-arg ONEC_PASSWORD=${ONEC_PASSWORD} \
   --build-arg ONEC_VERSION=${ONEC_VERSION} \
   -t localhost/onec-thin-client:${ONEC_VERSION} \
-  -f thin-client/Dockerfile .
+  -f thin-client/Containerfile .
 ```
 
 ## Тонкий клиент с дополнительными языками
@@ -209,7 +209,7 @@ docker buildx build --load \
   --build-arg ONEC_VERSION=${ONEC_VERSION} \
   --build-arg nls_enabled=true \
   -t localhost/onec-thin-client-nls:${ONEC_VERSION} \
-  -f thin-client/Dockerfile .
+  -f thin-client/Containerfile .
 ```
 
 ## Хранилище конфигурации
@@ -222,7 +222,7 @@ docker buildx build --load \
   --build-arg ONEC_PASSWORD=${ONEC_PASSWORD} \
   --build-arg ONEC_VERSION=${ONEC_VERSION} \
   -t localhost/onec-crs:${ONEC_VERSION} \
-  -f crs/Dockerfile .
+  -f crs/Containerfile .
 ```
 
 ## rac-gui
@@ -233,7 +233,7 @@ docker buildx build --load \
 docker buildx build --load \
   --build-arg ONEC_VERSION=${ONEC_VERSION} \
   -t localhost/onec-rac-gui:${ONEC_VERSION}-1.0.1 \
-  -f rac-gui/Dockerfile .
+  -f rac-gui/Containerfile .
 ```
 
 ## gitsync
@@ -244,7 +244,7 @@ docker buildx build --load \
 docker buildx build --load \
   --build-arg ONEC_VERSION=${ONEC_VERSION} \
   -t localhost/gitsync:3.0.0 \
-  -f gitsync/Dockerfile .
+  -f gitsync/Containerfile .
 ```
 
 ## oscript
@@ -254,7 +254,7 @@ docker buildx build --load \
 ```bash
 docker buildx build --load \
   -t localhost/oscript:latest \
-  -f oscript/Dockerfile .
+  -f oscript/Containerfile .
 ```
 
 ## vanessa-runner
@@ -264,7 +264,7 @@ docker buildx build --load \
 ```bash
 docker buildx build --load \
   -t localhost/runner:1.7.0 \
-  -f vanessa-runner/Dockerfile .
+  -f vanessa-runner/Containerfile .
 ```
 
 ## EDT
@@ -277,7 +277,7 @@ docker buildx build --load \
     --build-arg ONEC_PASSWORD=${ONEC_PASSWORD} \
     --build-arg EDT_VERSION=${EDT_VERSION} \
     -t localhost/edt:${EDT_VERSION} \
-    -f edt/Dockerfile .
+    -f edt/Containerfile .
 ```
 
 ## Исполнитель
@@ -348,7 +348,7 @@ act -j server pull_request \
 
 - **act v0.2.88**: обязателен `--concurrent-jobs 1` из-за бага `concurrent map iteration and map write`
 - **Artifacts**: предупреждение `Unable to get the ACTIONS_RUNTIME_TOKEN env variable` безвредно — влияет только на загрузку build-записей в GitHub
-- **Secrets in ARG**: Dockerfile использует `ARG ONEC_PASSWORD`, что вызывает предупреждение Docker о секретах в build-args
+- **Secrets in ARG**: Containerfile использует `ARG ONEC_PASSWORD`, что вызывает предупреждение Docker о секретах в build-args
 - **free-disk-space**: pre-build шаг пытается очистить диск через `apt-get remove` и `docker image prune` — в контейнере act это может занимать лишнее время
 
 ## Toolbox-образы для distrobox

@@ -2,7 +2,7 @@ ARG DOCKER_REGISTRY_URL=localhost
 FROM ${DOCKER_REGISTRY_URL:+"$DOCKER_REGISTRY_URL"/}oscript-downloader:latest AS downloader
 
 # Копирование скрипта скачивания и локальных дистрибутивов
-COPY ./scripts/download_yard.sh /download.sh
+COPY ./scripts/installer/libexec/yard-download.sh /download.sh
 COPY ./distr /distr
 RUN chmod +x /download.sh
 
@@ -45,9 +45,8 @@ FROM ubuntu:24.04 AS installer
 ARG ONEC_VERSION
 ARG gosu_ver=1.11
 ARG nls_enabled=false
-ENV installer_type=server_crs
 ENV nls=$nls_enabled
-
+ENV installer_type=server
 
 # Установка зависимостей и настройка локали
 RUN <<EOF
@@ -60,14 +59,16 @@ RUN <<EOF
     curl \
     fontconfig \
     unixodbc \
+    ttf-mscorefonts-installer \
     libgsf-1-114 \
     keyboard-configuration
   dpkg-reconfigure -f noninteractive tzdata
   dpkg-reconfigure -f noninteractive keyboard-configuration
+  apt-get install -yq geoclue-2.0 gstreamer1.0-plugins-bad
   export LANG=ru_RU.UTF-8
 EOF
 
-COPY ./scripts/install_new.sh /install.sh
+COPY ./scripts/installer/libexec/install-packages.sh /install.sh
 COPY --from=downloader /tmp/distr /tmp/distr
 RUN <<EOF
   set -eux
@@ -77,7 +78,7 @@ RUN <<EOF
 EOF
 
 # Создание символической ссылки на текущую директорию 1C
-COPY ./scripts/create-symlink-to-current-1cv8.sh /create-symlink-to-current-1cv8.sh
+COPY ./scripts/installer/libexec/create-symlinks-1cv8.sh /create-symlink-to-current-1cv8.sh
 RUN <<EOF
   set -eux
   chmod +x /create-symlink-to-current-1cv8.sh
@@ -91,7 +92,7 @@ RUN chmod +x /bin/gosu
 
 # Переход к финальному образу
 FROM debian:bookworm-slim
-LABEL maintainer="Anton Kvashenkin <anton.jugatsu@gmail.com> (@jugatsu)"
+LABEL maintainer="ivanov egor"
 
 # Создание пользователя и установка локали
 ARG onec_uid="999"
@@ -103,7 +104,11 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
   set -eux
   apt-get update
   DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-      locales
+      locales \
+      iproute2 \
+      imagemagick \
+      fontconfig \
+      ca-certificates
   locale-gen ru_RU.UTF-8
 EOF
 ENV LANG=ru_RU.UTF-8
@@ -113,18 +118,29 @@ RUN <<EOF
   set -eux
   groupadd -r grp1cv8 --gid=$onec_gid
   useradd -r -g grp1cv8 --uid=$onec_uid --home-dir=/home/usr1cv8 --shell=/bin/bash usr1cv8
-  mkdir -p /home/usr1cv8/.1cv8
-  chown -R usr1cv8:grp1cv8 /home/usr1cv8
+  mkdir -p /var/log/1C /home/usr1cv8/.1cv8/1C/1cv8/conf /opt/1cv8/current/conf
+  chown -R usr1cv8:grp1cv8 /var/log/1C /home/usr1cv8
 EOF
 
-VOLUME /home/usr1cv8/.1cv8
+VOLUME /home/usr1cv8/.1cv8 /var/log/1C
 
-# Установка точки входа
-COPY ./crs/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
-RUN ln -s usr/local/bin/docker-entrypoint.sh /  # backwards compat
-RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+# Копирование конфигурационных файлов
+COPY ./server/logcfg.xml /home/usr1cv8/.1cv8/1C/1cv8/conf
+COPY ./server/logcfg.xml /opt/1cv8/current/conf
+
+# Установка точки входа и выполнение дополнительных настроек
+COPY ./server/entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN ln -s usr/local/bin/entrypoint.sh /  # backwards compat
+RUN chmod +x /usr/local/bin/entrypoint.sh 
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt/lists,sharing=locked <<EOF
+  set -eux
+  apt-get update
+  apt-get install -yq procps
+EOF
+RUN chmod +x /opt/1cv8/current/ragent
 
 # Настройка точки входа и экспонирование портов
-ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
-EXPOSE 1542
-CMD ["crserver"]
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+EXPOSE 1540 1541 1545 1560
+CMD ["ragent"]
