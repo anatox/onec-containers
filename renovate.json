@@ -1,0 +1,87 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "forkProcessing": "enabled",
+  "extends": [
+    "config:recommended",
+    ":enablePreCommit"
+  ],
+  "packageRules": [
+    {
+      "matchManagers": ["dockerfile", "docker-compose"],
+      "matchDepNames": ["localhost/*"],
+      "enabled": false
+    }
+  ],
+  "commitMessagePrefix": "build(deps):",
+  "commitMessageAction": "update",
+  "customManagers": [
+    {
+      "depNameTemplate": "oscript-library/ovm",
+      "customType": "regex",
+      "fileMatch": [
+        "^oscript/Containerfile$",
+        "^build-.*\\.sh$",
+        "^\\.github/actions/.*\\.yml$",
+        "^\\.github/workflows/.*\\.yml$",
+        "^\\.envrc\\.example$"
+      ],
+      "matchStrings": [
+        "OVM_VERSION=\"?\\$\\{[^}]*:-(?<currentValue>[^}]+)\\}\"?",
+        "OVM_VERSION=\"?(?<currentValue>\\d[^\\s\"]*)\"?"
+      ],
+      "datasourceTemplate": "github-releases",
+      "extractVersionTemplate": "^v(?<version>.*)$"
+    },
+    {
+      "customType": "regex",
+      "fileMatch": [
+        "^oscript/Containerfile$",
+        "^build-.*\\.sh$",
+        "^\\.github/actions/.*\\.yml$",
+        "^\\.github/workflows/.*\\.yml$",
+        "^\\.envrc\\.example$"
+      ],
+      "matchStrings": [
+        "ONESCRIPT_VERSION=\"?\\$\\{[^}]*:-(?<currentValue>[^}]+)\\}\"?",
+        "ONESCRIPT_VERSION=\"?(?<currentValue>\\d[^\\s\"]*)\"?"
+      ],
+      "datasourceTemplate": "github-releases",
+      "depNameTemplate": "EvilBeaver/OneScript",
+      "extractVersionTemplate": "^v(?<version>.*)$"
+    },
+    {
+      "depNameTemplate": "arkuznetsov/yard",
+      "customType": "regex",
+      "fileMatch": [
+        "^installer/Containerfile$",
+        "^build-.*\\.sh$",
+        "^\\.github/actions/.*\\.yml$",
+        "^\\.github/workflows/.*\\.yml$",
+        "^\\.envrc\\.example$"
+      ],
+      "matchStrings": [
+        "YARD_VERSION=\"?\\$\\{[^}]*:-(?<currentValue>[^}]+)\\}\"?",
+        "YARD_VERSION=\"?(?<currentValue>\\d[^\\s\"]*)\"?"
+      ],
+      "datasourceTemplate": "github-releases",
+      "extractVersionTemplate": "^v(?<version>.*)$"
+    },
+    {
+      "depNameTemplate": "1c-syntax/Coverage41C",
+      "customType": "regex",
+      "fileMatch": [
+        "^installer/Containerfile$",
+        "^build-.*\\.sh$",
+        "^\\.github/actions/.*\\.yml$",
+        "^\\.github/workflows/.*\\.yml$",
+        "^\\.envrc\\.example$"
+      ],
+      "matchStrings": [
+        "COVERAGE41C_VERSION=\"?\\$\\{[^}]*:-(?<currentValue>[^}]+)\\}\"?",
+        "COVERAGE41C_VERSION=\"?(?<currentValue>\\d[^\\s\"]*)\"?"
+      ],
+      "datasourceTemplate": "github-releases",
+      "extractVersionTemplate": "^v(?<version>.*)$"
+    }
+  ]
+}
