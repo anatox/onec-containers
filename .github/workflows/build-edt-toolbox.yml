@@ -34,7 +34,7 @@ jobs:
     if: github.event_name != 'pull_request' || vars.BUILD_EDT_TOOLBOX != 'false'
     runs-on: ubuntu-26.04
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           fetch-depth: ${{ github.ref_type == 'tag' && '0' || '1' }}
 
