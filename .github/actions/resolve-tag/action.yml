@@ -119,24 +119,39 @@ runs:
           fi
 
           RESOLVED_TAG="packages/${COMPONENT}/v${FULL_VERSION}-r${BUILD_NUM}"
+          TAG_SHA="$(git rev-parse HEAD)"
 
-          # Create resolved -rN tag locally (points at the same commit as the trigger tag)
-          git tag "${RESOLVED_TAG}" HEAD
+          echo "Commit SHA: ${TAG_SHA}"
 
-          # Push resolved -rN tag and delete plain tag in one atomic push
-          echo "Pushing resolved tag: ${RESOLVED_TAG}"
+          # Create tag object via API and reference it (avoids git push workflow-permission bug)
+          echo "Creating resolved tag: ${RESOLVED_TAG}"
+          TAG_OBJECT_SHA="$(gh api repos/{owner}/{repo}/git/tags \
+            --raw-field "tag=${RESOLVED_TAG}" \
+            --raw-field "message=build ${BUILD_NUM}" \
+            --raw-field "object=${TAG_SHA}" \
+            --raw-field "type=commit" \
+            --jq '.sha')"
+
+          if [[ -z "$TAG_OBJECT_SHA" ]]; then
+            echo "::error::Failed to create tag object via API"
+            exit 1
+          fi
+
+          echo "Creating tag ref: ${RESOLVED_TAG}"
           PUSH_ERROR=$(mktemp)
-          if ! git push origin "${RESOLVED_TAG}" ":${TAG}" 2>"${PUSH_ERROR}"; then
+          if ! gh api repos/{owner}/{repo}/git/refs \
+            --raw-field "ref=refs/tags/${RESOLVED_TAG}" \
+            --raw-field "sha=${TAG_OBJECT_SHA}" > /dev/null 2>"${PUSH_ERROR}"; then
             ERROR_MSG=$(cat "${PUSH_ERROR}")
             rm -f "${PUSH_ERROR}"
-            if echo "$ERROR_MSG" | grep -q '\[rejected\]'; then
-              echo "::error::Concurrent build resolved the same -r${BUILD_NUM}. Re-push the trigger tag to retry."
-              exit 1
-            fi
-            echo "::error::Failed to push resolved tag: ${ERROR_MSG}"
+            echo "::error::Failed to create resolved tag: ${ERROR_MSG}"
             exit 1
           fi
           rm -f "${PUSH_ERROR}"
+
+          # Delete plain tag via API
+          echo "Deleting plain tag: ${TAG}"
+          gh api -X DELETE "repos/{owner}/{repo}/git/refs/tags/${TAG}" > /dev/null || true
 
           IMAGE_TAG="${FULL_VERSION}-r${BUILD_NUM}"
         else
