@@ -7,7 +7,7 @@ if [ "${NO_CACHE}" = 'true' ] ; then
 fi
 
 export OPENJDK_VERSION="${OPENJDK_VERSION:-17}"
-export ONESCRIPT_VERSION="${ONESCRIPT_VERSION:-2.0.2}"
+export ONESCRIPT_VERSION="${ONESCRIPT_VERSION:-2.1.0}"
 
 echo "=== oscript-jdk ==="
 buildah build \

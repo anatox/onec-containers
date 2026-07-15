@@ -8,7 +8,7 @@ fi
 
 export ONEC_VERSION="${ONEC_VERSION:-8.5.1.1343}"
 export YARD_VERSION="${YARD_VERSION:-1.9.2}"
-export ONESCRIPT_VERSION="${ONESCRIPT_VERSION:-2.0.2}"
+export ONESCRIPT_VERSION="${ONESCRIPT_VERSION:-2.1.0}"
 
 ./build-installer.sh
 

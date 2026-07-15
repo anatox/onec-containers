@@ -6,7 +6,7 @@ if [ "${NO_CACHE}" = 'true' ] ; then
     last_args=(--no-cache .)
 fi
 
-export ONESCRIPT_VERSION="${ONESCRIPT_VERSION:-2.0.2}"
+export ONESCRIPT_VERSION="${ONESCRIPT_VERSION:-2.1.0}"
 export YARD_VERSION="${YARD_VERSION:-1.9.2}"
 
 echo "=== oscript ==="
