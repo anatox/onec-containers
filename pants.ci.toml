@@ -1,0 +1,6 @@
+[docker]
+use_buildx = true
+
+[docker.registries.ghcr]
+address = "%(env.REGISTRY_PREFIX)s"
+default = true

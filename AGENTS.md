@@ -1,5 +1,11 @@
 # GitHub Copilot Instructions for onec-containers
 
+> **Phase 1 Pants pilot active**: `oscript → installer → server` chain migrated to Pants 2.32 (`pants.backend.docker`). BUILD files in `oscript/`, `installer/`, `server/`. Versions in `versions/` (per-component `.py` files). CI via `release.yml` / `pr.yml` with `--changed-since`. Buildah + `build-*.sh` + git-tag releases still active for all other components. Server chain builds exclusively via `pants package server:` and `pants publish`. README presents target-state Pants-only usage — phase 1/2 details live here only.
+> - **Secrets**: `releases.env` (env-format, single `releases_env` secret mount). `releases.env.example` for reference.
+> - **Local dev**: `.devcontainer/` recommended. `pants package server:onec-server-8.5.1.1343` builds the full chain.
+> - **Image tags**: `<version>`, `<version>-g<sha>` (immutable), `latest` (last version only, main branch), `local` (no publish).
+> - **Containerfile changes**: `oscript/Containerfile` LABEL moved after FROM (B1). `server/Containerfile` secrets consolidated to single `releases_env` mount (B5).
+
 ## Project Overview
 
 This repository contains container configurations for building images with 1C:Enterprise (1С:Предприятие) 8.3+ platform, a popular Russian ERP and business automation platform. The project provides containerized solutions for various 1C components including servers, clients, development tools, and CI/CD agents.
@@ -190,7 +196,19 @@ Follow existing pattern for Make targets:
 - Cache mount `distr-cache` (`/var/cache/yard`) is shared across all Containerfiles for downloaded 1C distributions.
 - Local `distr/` directory is copied into installer stage for offline builds; `yard-download.sh` auto-detects matching archives.
 
+### Pants (Phase 1 — server chain only)
+
+- `build_file_prelude_globs = ["versions/*.py", "build_support/*.py"]` injects those files' variables directly into every BUILD file scope — no imports needed.
+- `pants.ci.toml` activates `use_buildx = true` and configures `[docker.registries.ghcr]` for GHCR push. CI sets `PANTS_CONFIG_FILES=pants.ci.toml`.
+- `PLATFORM_VERSIONS` is a tuple, not a list. Use `max()` for latest-version logic, not `[-1]` — Pants' BUILD evaluator doesn't reliably support negative tuple indexing.
+- Pants `docker_image` resolves inter-image dependencies via target names (e.g. `oscript:oscript`), not localhost tags. Containerfile `FROM` ARGs use target-named references like `ARG BASE_IMAGE=oscript:oscript`.
+- Secrets under Pants: `server/BUILD` declares `secrets={"releases_env": secrets_file("releases.env")}`. The Containerfile reads a single file secret via `--mount=type=secret,id=releases_env` and sources it: `set -a; . /run/secrets/releases_env`. The `secrets_file()` helper is a pass-through identity function — a semantic marker required by Pants API.
+- `cache_args()` returns `cache_to`/`cache_from` dicts for registry-backed layer caching (`mode: "max"` for all layers). Only active when `PANTS_DOCKER_CACHE_PREFIX` env var is set.
+- `server/BUILD` uses `context_root="."` so the build context is the repo root. All Containerfile COPY paths are repo-root-relative (e.g. `COPY server/entrypoint.sh /...`, not `COPY ./server/entrypoint.sh /...`). Without this, Pants defaults to per-directory context and cross-directory COPYs fail.
+
 ## Git Tag-Based CI
+
+> **⚠️ Устарело (Phase 1 Pants)**: Система сборки через git-теги (`packages/<component>/v<version>`) **выведена из эксплуатации** для `oscript`, `installer` и `server`. Push таких тегов больше не запускает сборку — используйте `workflow_dispatch` в `release.yml` или push в `main`. Компоненты фазы 2+ продолжают использовать Buildah + git-теги.
 
 - Tag format: `packages/<component>/v<version>[-r<N>]`
 - `resolve-tag` action: plain tags (`v8.5.1.1343`) auto-increment to immutable `-rN` tags. Tags already with `-rN` pass through unchanged.
@@ -227,13 +245,13 @@ Follow existing pattern for Make targets:
 
 ### Container Naming
 
-- **Platform images**: `onec-<component>:${VERSION}` (e.g., `onec-server:8.5.1.1343-r1`), `onec-client:${VERSION}`
+- **Platform images**: `onec-<component>:${VERSION}` (e.g., `onec-server:8.5.1.1343`), `onec-client:${VERSION}`
 - **EDT images**: `edt:${EDT_VERSION}` (e.g., `edt:2025.2.6`), `edt-s6:${EDT_VERSION}`, `edt-agent:${EDT_VERSION}`
 - **Toolbox images**: `edt-toolbox:${EDT_VERSION}[-client${ONEC_VERSION}]` (e.g., `edt-toolbox:2025.2.6-client8.5.1.1343-r1`), `client-toolbox:${ONEC_VERSION}`
 - **OScript images**: `oscript-jdk`, `oscript-jdk-s6`, `oscript-agent` (versioned by OneScript version)
 - **Agent images**: `base-jenkins-agent:${ONEC_VERSION}`, `base-jenkins-coverage-agent:${ONEC_VERSION}`
 - **Executor**: `executor:${EXECUTOR_VERSION}`
-- In CI, tags follow the `-r<N>` scheme (see Git Tag-Based CI). Locally, use plain version or `latest`
+- In CI, tags follow the `-r<N>` scheme (see Git Tag-Based CI) for non-Pants components. Pants components use `<version>-g<sha>`.
 - Use descriptive suffixes (`-nls`, `-vnc`, `-s6`, etc.)
 - Tag both specific component version and `latest` for latest main branch build
 

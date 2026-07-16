@@ -1,0 +1,12 @@
+[GLOBAL]
+pants_version = "2.32.1"
+backend_packages = ["pants.backend.docker"]
+pants_ignore = [".kilo/"]
+build_file_prelude_globs = ["versions/*.py", "build_support/*.py"]
+
+[python]
+interpreter_constraints = ["CPython>=3.11,<4"]
+
+[docker]
+env_vars = ["DOCKER_HOST", "DOCKER_CONFIG", "DOCKER_BUILDKIT=1"]
+default_repository = "{name}"

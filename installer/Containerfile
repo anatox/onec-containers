@@ -1,4 +1,4 @@
-ARG BASE_IMAGE=localhost/oscript:local
+ARG BASE_IMAGE=oscript:oscript
 
 FROM ${BASE_IMAGE}
 LABEL org.opencontainers.image.authors="Anatolii Sereda <3011745+anatox@users.noreply.github.com>"
@@ -16,5 +16,5 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
 EOF
 
 # Копируем скрипты установки
-COPY --chmod=755 ./scripts/installer /opt/onec-installer
+COPY --chmod=755 scripts/installer /opt/onec-installer
 ENV PATH="$PATH:/opt/onec-installer/bin"

@@ -1,0 +1,29 @@
+{
+	"name": "onec-containers-dev",
+	"build": {
+		"dockerfile": "Containerfile"
+	},
+	"features": {
+		"ghcr.io/devcontainers/features/docker-in-docker:2": {
+			"moby": false
+		},
+		"ghcr.io/devcontainers/features/common-utils:2": {},
+		"ghcr.io/devcontainers-extra/features/direnv:1": {},
+		"ghcr.io/devcontainers/features/python:1": {
+			"version": "3.12"
+		}
+	},
+	"runArgs": [
+		"--add-host=host.docker.internal:host-gateway"
+	],
+	"remoteUser": "vscode",
+	"postCreateCommand": "python3.12 -m pip install --user -q yamllint && pants --version",
+	"customizations": {
+		"vscode": {
+			"extensions": [
+				"robotpajamas.vscode-suspenders",
+				"tamasfe.even-better-toml"
+			]
+		}
+	}
+}

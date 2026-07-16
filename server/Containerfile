@@ -1,5 +1,5 @@
 ARG BASE_IMAGE=ubuntu:26.04
-ARG INSTALLER_IMAGE=localhost/onec-installer:local
+ARG INSTALLER_IMAGE=onec-installer:local
 
 FROM ${INSTALLER_IMAGE} AS installer
 
@@ -8,7 +8,7 @@ ARG GOSU_VER=1.11
 ARG NLS_ENABLED=false
 
 # Копирование локальных дистрибутивов
-COPY ./distr /distr
+COPY distr /distr
 
 # Установка зависимостей и настройка локали
 RUN <<'EOF'
@@ -37,11 +37,9 @@ RUN chmod +x /bin/gosu
 
 # Начало основной стадии сборки
 RUN --mount=type=cache,id=distr-cache,target=/var/cache/yard,sharing=locked \
-    --mount=type=secret,id=onec_username \
-    --mount=type=secret,id=onec_password <<'EOF'
+    --mount=type=secret,id=releases_env <<'EOF'
   set -euxo pipefail
-  export ONEC_USERNAME="$(cat /run/secrets/onec_username)"
-  export ONEC_PASSWORD="$(cat /run/secrets/onec_password)"
+  set -a; . /run/secrets/releases_env >/dev/null 2>&1; set +a
   onec-install --nls="$NLS_ENABLED" server "$ONEC_VERSION"
 EOF
 
@@ -64,6 +62,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
       ca-certificates
   locale-gen ru_RU.UTF-8
 EOF
+
 # Установка переменных окружения для корректной работы локали
 ENV LANG=ru_RU.UTF-8
 ENV LANGUAGE=ru_RU:ru
@@ -84,11 +83,11 @@ EOF
 VOLUME /home/usr1cv8/.1cv8 /var/log/1C
 
 # Копирование конфигурационных файлов
-COPY ./server/logcfg.xml /home/usr1cv8/.1cv8/1C/1cv8/conf
-COPY ./server/logcfg.xml /opt/1cv8/current/conf
+COPY server/logcfg.xml /home/usr1cv8/.1cv8/1C/1cv8/conf
+COPY server/logcfg.xml /opt/1cv8/current/conf
 
 # Установка точки входа и выполнение дополнительных настроек
-COPY ./server/entrypoint.sh /usr/local/bin/entrypoint.sh
+COPY server/entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN ln -s usr/local/bin/entrypoint.sh /  # backwards compat
 RUN chmod +x /usr/local/bin/entrypoint.sh 
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \

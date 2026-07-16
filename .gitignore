@@ -1,15 +1,19 @@
-.vagrant
-
-.env
-.onec.env
-.envrc
-env.bat
-build_info.txt
 .DS_Store
-dive.log
+desktop.ini
 
 # Configuration file for HASP LM
 nethasp.ini
 
-distr/
+# Local installation files
+distr/**
+!distr/.gitkeep
+!distr/BUILD
 lic/**.lic
+
+# Local environment files
+*.env
+*.envrc
+
+# Pants workspace files
+/.pants.d
+/dist/

@@ -1,5 +1,4 @@
-export ONEC_USERNAME=onec
-export ONEC_PASSWORD=onec
+source releases.env
 
 export CONTAINER_REGISTRY_URL=container-registry:5000
 

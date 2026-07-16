@@ -1,0 +1,153 @@
+name: Release images
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      targets:
+        description: Pants target pattern (e.g. "server:" or "::")
+        type: string
+        default: "::"
+      publish:
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  plan:
+    runs-on: ubuntu-26.04
+    outputs:
+      matrix: ${{ steps.select.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Initialize Pants
+        uses: pantsbuild/actions/init-pants@v8
+        with:
+          named-caches-hash: ${{ hashFiles('versions/*.py', 'build_support/*.py') }}
+
+      - name: Select targets
+        id: select
+        uses: ./.github/actions/select-targets
+        with:
+          source: ${{ github.event_name }}
+          targets: ${{ inputs.targets || '' }}
+          filter_toolchain: 'true'
+
+  build:
+    needs: plan
+    if: needs.plan.outputs.matrix != '' && toJson(fromJson(needs.plan.outputs.matrix).include[0].target) != '"noop"'
+    runs-on: ubuntu-26.04
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.plan.outputs.matrix) }}
+    name: ${{ matrix.name }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+
+      - name: Maximize build space
+        uses: endersonmenezes/free-disk-space@v3
+        with:
+          remove_android: true
+          remove_dotnet: true
+          remove_haskell: true
+          remove_tool_cache: true
+          remove_swap: true
+          remove_packages: "azure-cli google-cloud-cli microsoft-edge-stable google-chrome-stable firefox"
+          remove_packages_one_command: true
+          remove_folders: "/usr/share/swift /usr/share/miniconda /etc/skel /home/packer /opt/pipx /opt/actionarchivecache /opt/runner-cache"
+          rm_cmd: "rmz"
+
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@d7543c93d881b35a8faa02e8e3605f69b7a1ce62
+
+      - name: Enable containerd image store
+        shell: bash
+        run: |
+          set -eux
+          if ! docker info -f '{{.OSType}}' 2>/dev/null | grep -q .; then
+            sudo systemctl start docker || true
+          fi
+          sudo tee /etc/docker/daemon.json <<'JSON'
+          {
+            "features": { "containerd-snapshotter": true }
+          }
+          JSON
+          sudo systemctl restart docker
+          until docker info -f '{{.OSType}}' 2>/dev/null | grep -q .; do sleep 1; done
+
+      - name: Initialize Pants
+        uses: pantsbuild/actions/init-pants@v8
+        with:
+          named-caches-hash: ${{ hashFiles('versions/*.py', 'build_support/*.py') }}
+
+      - name: Write secret files
+        shell: bash
+        run: |
+          cat > releases.env <<'ENV'
+          ONEC_USERNAME=${{ secrets.ONEC_USERNAME }}
+          ONEC_PASSWORD=${{ secrets.ONEC_PASSWORD }}
+          ENV
+
+      - name: Export build environment
+        id: env
+        shell: bash
+        run: |
+          REGISTRY_PREFIX="ghcr.io/${{ github.repository_owner }}"
+          echo "REGISTRY_PREFIX=${REGISTRY_PREFIX}" >> "$GITHUB_ENV"
+          echo "PANTS_DOCKER_CACHE_PREFIX=${REGISTRY_PREFIX}/cache" >> "$GITHUB_ENV"
+          echo "GIT_SHA=${{ github.sha }}" >> "$GITHUB_ENV"
+          echo "PUBLISH_LATEST=true" >> "$GITHUB_ENV"
+          echo "NLS_ENABLED=${{ vars.NLS_ENABLED || 'false' }}" >> "$GITHUB_ENV"
+          echo "GITHUB_REPOSITORY_OWNER=${{ github.repository_owner }}" >> "$GITHUB_ENV"
+          echo "GITHUB_REPOSITORY=${{ github.repository }}" >> "$GITHUB_ENV"
+          echo "PANTS_CONFIG_FILES=pants.ci.toml" >> "$GITHUB_ENV"
+          echo "DOCKER_BUILDKIT=1" >> "$GITHUB_ENV"
+
+      - name: Login to ghcr.io
+        if: github.event_name != 'workflow_dispatch' || inputs.publish
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish image
+        if: (github.event_name != 'workflow_dispatch' || inputs.publish) && vars.PUBLISH != 'false'
+        env:
+          PANTS_CONFIG_FILES: pants.ci.toml
+        run: pants publish '${{ matrix.target }}'
+
+      - name: Sign image
+        if: (github.event_name != 'workflow_dispatch' || inputs.publish) && vars.PUBLISH != 'false'
+        shell: bash
+        run: |
+          target_name="$(echo '${{ matrix.target }}' | awk -F: '{print $2}' | sed 's/^onec-server-//')"
+          sha_short="${{ github.sha }}"
+          sha_short="${sha_short:0:7}"
+          repo="${{ matrix.repo }}"
+          digest="$(docker buildx imagetools inspect "ghcr.io/${{ github.repository_owner }}/${repo}:${target_name}-g${sha_short}" --format '{{println .Manifest.Digest}}' | tr -d '\n')"
+          cosign sign -y --key env://COSIGN_PRIVATE_KEY \
+            "ghcr.io/${{ github.repository_owner }}/${repo}@${digest}"
+        env:
+          COSIGN_PRIVATE_KEY: ${{ secrets.COSIGN_PRIVATE_KEY }}
+          COSIGN_EXPERIMENTAL: "false"
+
+      - name: Package only (no publish)
+        if: github.event_name == 'workflow_dispatch' && !inputs.publish
+        env:
+          PANTS_CONFIG_FILES: pants.ci.toml
+        run: pants package '${{ matrix.target }}'
+
+      - name: Cleanup secrets
+        if: always()
+        shell: bash
+        run: rm -f *.env

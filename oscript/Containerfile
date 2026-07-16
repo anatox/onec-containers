@@ -1,4 +1,3 @@
-LABEL org.opencontainers.image.authors="Anatolii Sereda <3011745+anatox@users.noreply.github.com>"
 ARG BASE_IMAGE=ubuntu:26.04
 
 FROM debian:13-slim AS oscript-installer
@@ -39,6 +38,8 @@ EOF
 
 FROM ${BASE_IMAGE}
 
+LABEL org.opencontainers.image.authors="Anatolii Sereda <3011745+anatox@users.noreply.github.com>"
+
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt/lists,sharing=locked <<'EOF'
   set -eux
@@ -67,7 +68,7 @@ RUN <<'EOF'
   if [ -n "${ONESCRIPT_PACKAGES}" ]; then opm install ${ONESCRIPT_PACKAGES}; fi
 EOF
 
-COPY ./oscript/entrypoint.sh /
+COPY oscript/entrypoint.sh /
 RUN <<'EOF'
   set -eux
   chmod 755 /entrypoint.sh

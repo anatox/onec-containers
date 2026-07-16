@@ -1,0 +1,58 @@
+name: PR build check
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  plan:
+    runs-on: ubuntu-26.04
+    outputs:
+      matrix: ${{ steps.select.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Initialize Pants
+        uses: pantsbuild/actions/init-pants@v8
+        with:
+          named-caches-hash: ${{ hashFiles('versions/*.py', 'build_support/*.py') }}
+
+      - name: Select targets
+        id: select
+        uses: ./.github/actions/select-targets
+        with:
+          source: 'pr'
+
+  build:
+    needs: plan
+    if: needs.plan.outputs.matrix != '' && toJson(fromJson(needs.plan.outputs.matrix).include[0].target) != '"noop"'
+    runs-on: ubuntu-26.04
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.plan.outputs.matrix) }}
+    name: ${{ matrix.name }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+
+      - name: Initialize Pants
+        uses: pantsbuild/actions/init-pants@v8
+        with:
+          named-caches-hash: ${{ hashFiles('versions/*.py', 'build_support/*.py') }}
+
+      - name: Export build environment
+        shell: bash
+        run: |
+          echo "NLS_ENABLED=${{ vars.NLS_ENABLED || 'false' }}" >> "$GITHUB_ENV"
+          echo "GITHUB_REPOSITORY_OWNER=${{ github.repository_owner }}" >> "$GITHUB_ENV"
+          echo "GITHUB_REPOSITORY=${{ github.repository }}" >> "$GITHUB_ENV"
+
+      - name: Package image
+        run: pants package '${{ matrix.target }}'

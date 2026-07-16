@@ -1,0 +1,13 @@
+FROM mcr.microsoft.com/devcontainers/base:3-ubuntu26.04
+
+USER vscode
+WORKDIR /home/vscode
+ENV PATH="/home/vscode/.local/bin:${PATH}"
+
+# Install Pants
+RUN <<'EOF'
+set -eux
+curl -fsSL https://static.pantsbuild.org/setup/get-pants.sh | bash
+echo 'eval "$(pants complete --shell=zsh)"' >> ~/.zshrc
+echo 'eval "$(pants complete --shell=bash)"' >> ~/.bashrc
+EOF
