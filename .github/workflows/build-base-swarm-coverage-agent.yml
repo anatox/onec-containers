@@ -1,13 +1,8 @@
 name: Build base-swarm-coverage-agent
 
-run-name: ${{ github.ref_type == 'tag' && format('Build {0}', github.ref_name) || 'Build base-swarm-coverage-agent' }}
+run-name: Build base-swarm-coverage-agent
 
 on:
-  push:
-    tags:
-      - 'packages/coverage-agent/v*'
-  pull_request:
-    branches: [main]
   workflow_dispatch:
     inputs:
       platform_version:
@@ -29,7 +24,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          fetch-depth: ${{ github.ref_type == 'tag' && '0' || '1' }}
+          fetch-depth: 1
 
       - id: pre-build
         uses: ./.github/actions/pre-build
@@ -54,7 +49,7 @@ jobs:
           ONESCRIPT_VERSION: '2.0.2'
           OPENJDK_VERSION: '17'
           is_default_branch: ${{ steps.pre-build.outputs.is_default_branch == 'true' }}
-          publish: ${{ github.ref_type == 'tag' || (github.event_name == 'workflow_dispatch' && inputs.publish) }}
+          publish: ${{ inputs.publish }}
           registry_url: ${{ vars.CONTAINER_REGISTRY_URL }}
           registry_username: ${{ vars.CONTAINER_REGISTRY_USERNAME }}
           registry_password: ${{ secrets.CONTAINER_REGISTRY_PASSWORD }}
@@ -72,7 +67,7 @@ jobs:
             EDT_IMAGE=${{ steps.build-edt.outputs.image-with-tag }}
             COVERAGE41C_VERSION=2.7.3
           is_default_branch: ${{ steps.pre-build.outputs.is_default_branch == 'true' }}
-          publish: ${{ github.ref_type == 'tag' || (github.event_name == 'workflow_dispatch' && inputs.publish) }}
+          publish: ${{ inputs.publish }}
           registry_url: ${{ vars.CONTAINER_REGISTRY_URL }}
           registry_username: ${{ vars.CONTAINER_REGISTRY_USERNAME }}
           registry_password: ${{ secrets.CONTAINER_REGISTRY_PASSWORD }}

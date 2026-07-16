@@ -1,13 +1,8 @@
 name: Build edt-toolbox
 
-run-name: ${{ github.ref_type == 'tag' && format('Build {0}', github.ref_name) || 'Build edt-toolbox' }}
+run-name: Build edt-toolbox
 
 on:
-  push:
-    tags:
-      - 'packages/edt-toolbox/v*'
-  pull_request:
-    branches: [main]
   workflow_dispatch:
     inputs:
       edt_version:
@@ -31,12 +26,11 @@ permissions:
 
 jobs:
   build:
-    if: github.event_name != 'pull_request' || vars.BUILD_EDT_TOOLBOX != 'false'
     runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v7
         with:
-          fetch-depth: ${{ github.ref_type == 'tag' && '0' || '1' }}
+          fetch-depth: 1
 
       - id: pre-build
         uses: ./.github/actions/pre-build
@@ -49,18 +43,10 @@ jobs:
         run: |
           set -euo pipefail
 
-          VERSION_MAIN="${{ steps.pre-build.outputs.version_main }}"
+          EDT_VER="${{ inputs.edt_version }}"
+          ONEC_VER="${{ inputs.platform_version }}"
+
           VERSION_DEPS='${{ steps.pre-build.outputs.version_deps }}'
-          BUILD_NUM="${{ steps.pre-build.outputs.build_num }}"
-
-          if [[ "${{ github.ref_type }}" == "tag" ]]; then
-            EDT_VER="$VERSION_MAIN"
-            ONEC_VER=""
-          else
-            EDT_VER="${{ inputs.edt_version }}"
-            ONEC_VER="${{ inputs.platform_version }}"
-          fi
-
           for dep in ${VERSION_DEPS}; do
             if [[ "$dep" == client* ]]; then
               ONEC_VER="${dep#client}"
@@ -77,24 +63,15 @@ jobs:
             exit 1
           fi
 
-          if [[ "${{ github.ref_type }}" == "tag" ]]; then
-            BASE_TAG="${EDT_VER}-base-r${BUILD_NUM}"
-            CLIENT_IMAGE_TAG="${EDT_VER}-client${ONEC_VER}-r${BUILD_NUM}"
-          else
-            BASE_TAG="${EDT_VER}-base"
-            CLIENT_IMAGE_TAG="${EDT_VER}-client${ONEC_VER}"
-          fi
+          BASE_TAG="${EDT_VER}-base"
+          CLIENT_IMAGE_TAG="${EDT_VER}-client${ONEC_VER}"
 
           echo "edt_version=${EDT_VER}" >> "$GITHUB_OUTPUT"
           echo "onec_version=${ONEC_VER}" >> "$GITHUB_OUTPUT"
           echo "base_tag=${BASE_TAG}" >> "$GITHUB_OUTPUT"
           echo "client_image_tag=${CLIENT_IMAGE_TAG}" >> "$GITHUB_OUTPUT"
 
-          if [[ "${{ github.ref_type }}" == "tag" ]]; then
-            echo "publish=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "publish=${{ github.event_name == 'workflow_dispatch' && inputs.publish || 'false' }}" >> "$GITHUB_OUTPUT"
-          fi
+          echo "publish=${{ inputs.publish }}" >> "$GITHUB_OUTPUT"
 
       - id: build-installer
         uses: ./.github/actions/build-installer
