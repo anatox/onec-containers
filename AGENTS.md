@@ -78,6 +78,7 @@ Each directory represents a specific container image:
    ```containerfile
    FROM ${CONTAINER_REGISTRY_URL:+"$CONTAINER_REGISTRY_URL/"}base-image:tag
    ```
+   Exception: Pants-managed Containerfiles that already have a target-address FROM-arg must not add a registry-ref FROM-arg (hardcode such bases instead) — see the Pants 2.32 FROM-arg bug below.
 5. **Labels**: Include maintainer information
 6. **Layer optimization**: Combine RUN commands to minimize layers
 
@@ -205,6 +206,8 @@ Follow existing pattern for Make targets:
 - Secrets under Pants: `server/BUILD` declares `secrets={"releases_env": secrets_file("releases.env")}`. The Containerfile reads a single file secret via `--mount=type=secret,id=releases_env` and sources it: `set -a; . /run/secrets/releases_env`. The `secrets_file()` helper is a pass-through identity function — a semantic marker required by Pants API.
 - `cache_args()` returns `cache_to`/`cache_from` dicts for registry-backed layer caching (`mode: "max"` for all layers). Only active when `PANTS_DOCKER_CACHE_PREFIX` env var is set.
 - `server/BUILD` uses `context_root="."` so the build context is the repo root. All Containerfile COPY paths are repo-root-relative (e.g. `COPY server/entrypoint.sh /...`, not `COPY ./server/entrypoint.sh /...`). Without this, Pants defaults to per-directory context and cross-directory COPYs fail.
+- **Pants 2.32 FROM-arg bug (pantsbuild/pants#23425), FIXED in 2.33**: on Pants < 2.33, a Containerfile must not mix target-address FROM-args (`ARG INSTALLER_IMAGE=installer:onec-installer`) with plain registry-ref FROM-args (`ARG BASE_IMAGE=ubuntu:26.04`). Pants drops non-target values during address resolution and then mispairs the rest: the registry-ref ARG silently receives the built image's tag and the target-address ARG stays unresolved, so buildx tries to pull it from docker.io (`pull access denied ... docker.io/library/installer`). Uniform FROM-args are safe: multiple FROM-args that are ALL target addresses pair correctly, as do all-registry-ref ones — only the mix breaks. Current workaround (`pants_version = "2.32.1"`): don't mix — `server/Containerfile` hardcodes `FROM ubuntu:26.04` (no `ARG BASE_IMAGE`) for this reason; `installer/Containerfile`'s single FROM-arg (`oscript:oscript`) is unaffected. Fixed upstream by pantsbuild/pants#23425, merged into `main` 2026-07-07 and first released in **2.33.0a0** (verified: built the original mixed-ARG Containerfile successfully with `PANTS_VERSION=2.33.0a0`). Once `pants_version` is bumped to >= 2.33.0 (stable), mixed FROM-args are safe again and the hardcoded `FROM ubuntu:26.04` workaround can be reverted to `ARG BASE_IMAGE=ubuntu:26.04` if desired.
+- **Podman under Pants**: not viable while registry caching matters — `cache_to`/`cache_from` are BuildKit-only fields (require `use_buildx = true`, buildx `type=registry,ref=` syntax); Pants (through 2.33) does not translate them to podman's `--cache-from` form, so switching drops registry layer caching. Keep `use_buildx = true`.
 
 ## Git Tag-Based CI
 
