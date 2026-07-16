@@ -47,6 +47,21 @@ jobs:
         with:
           fetch-depth: 1
 
+      - name: Enable containerd image store
+        shell: bash
+        run: |
+          set -eux
+          if ! docker info -f '{{.OSType}}' 2>/dev/null | grep -q .; then
+            sudo systemctl start docker || true
+          fi
+          sudo tee /etc/docker/daemon.json <<'JSON'
+          {
+            "features": { "containerd-snapshotter": true }
+          }
+          JSON
+          sudo systemctl restart docker
+          until docker info -f '{{.OSType}}' 2>/dev/null | grep -q .; do sleep 1; done
+
       - name: Initialize Pants
         uses: pantsbuild/actions/init-pants@v8
         with:
