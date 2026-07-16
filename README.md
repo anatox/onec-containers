@@ -29,7 +29,7 @@
   - [Тонкий клиент](#тонкий-клиент)
   - [Тонкий клиент с дополнительными языками](#тонкий-клиент-с-дополнительными-языками)
   - [Хранилище конфигурации](#хранилище-конфигурации)
-  - [rac-gui](#rac-gui)
+  - [Хранилище конфигурации с Apache](#хранилище-конфигурации-с-apache)
   - [gitsync](#gitsync)
   - [oscript](#oscript)
   - [vanessa-runner](#vanessa-runner)
@@ -76,7 +76,7 @@ direnv allow
 
 ### Модель версий
 
-Версии компонентов хранятся в отдельных файлах в `versions/`: `platform.py`, `oscript.py`, `yard.py`. Вспомогательные функции — в `build_support/helpers.py`. Изменение любого файла в `versions/` инвалидирует все BUILD-файлы и вызывает пересборку всех образов (registry cache делает untouched-сборки почти мгновенными).
+Версии компонентов хранятся в отдельных файлах в `versions/`: `platform.py`, `oscript.py`, `yard.py`, `executor.py`, `gitsync.py`, `vanessa_runner.py`. Вспомогательные функции — в `build_support/helpers.py`. Изменение любого файла в `versions/` инвалидирует все BUILD-файлы и вызывает пересборку всех образов (registry cache делает untouched-сборки почти мгновенными).
 
 ### Теги образов
 
@@ -96,8 +96,8 @@ direnv allow
 Откройте репозиторий в VS Code с расширением Dev Containers. Контейнер включает docker-in-docker, direnv и Pants launcher.
 
 ```bash
-# Создать releases.env из примера и заполнить учётными данными
-cp releases.env.example releases.env
+# Создать secrets.env из примера и заполнить учётными данными
+cp secrets.env.example secrets.env
 
 # В devcontainer достаточно запустить
 pants package server:onec-server-8.5.1.1343
@@ -107,7 +107,7 @@ pants package server:onec-server-8.5.1.1343
 
 ```bash
 # Скопировать пример конфигурации и заполнить учётными данными
-cp releases.env.example releases.env
+cp secrets.env.example secrets.env
 
 # Загрузить Pants launcher
 curl -fsSL https://static.pantsbuild.org/setup/pants-2.32.sh | bash
@@ -206,12 +206,12 @@ NLS_ENABLED=true pants package thin-client:onec-thin-client-8.5.1.1343
 pants package crs:onec-crs-8.5.1.1343
 ```
 
-## rac-gui
+## Хранилище конфигурации с Apache
 
 [(Наверх)](#оглавление)
 
 ```bash
-pants package rac-gui:onec-rac-gui-8.5.1.1343
+pants package crs-apache:onec-crs-apache-8.5.1.1343
 ```
 
 ## gitsync

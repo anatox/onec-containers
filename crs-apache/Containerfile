@@ -1,4 +1,4 @@
-ARG BASE_IMAGE=localhost/crs:local
+ARG BASE_IMAGE
 
 FROM ${BASE_IMAGE}
 LABEL org.opencontainers.image.authors="Anatolii Sereda <3011745+anatox@users.noreply.github.com>"
@@ -14,7 +14,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
   locale-gen ru_RU.UTF-8
 EOF
 
-COPY ./crs-apache/1crs.conf /etc/apache2/conf-available/
+COPY crs-apache/1crs.conf /etc/apache2/conf-available/
 RUN ln -s /etc/apache2/conf-available/1crs.conf /etc/apache2/conf-enabled/1crs.conf
 RUN <<EOF
   set -eux
@@ -22,10 +22,10 @@ RUN <<EOF
   echo "export APACHE_PID_FILE=/etc/apache2\$SUFFIX/apache2.pid" >> /etc/apache2/envvars
 EOF 
 
-COPY ./crs-apache/repo.1ccr /home/usr1cv8/.1cv8
+COPY crs-apache/repo.1ccr /home/usr1cv8/.1cv8
 RUN mkdir -p ${REPO_DIR}
 
-COPY ./crs-apache/entrypoint.sh /
+COPY crs-apache/entrypoint.sh /
 RUN <<EOF
   set -eux
   chmod 755 /entrypoint.sh

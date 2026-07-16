@@ -1,12 +1,12 @@
 ARG BASE_IMAGE=ubuntu:26.04
-ARG INSTALLER_IMAGE=localhost/onec-installer:local
+ARG INSTALLER_IMAGE=installer:onec-installer
 
 FROM ${INSTALLER_IMAGE} AS installer
 
 ARG ONEC_VERSION
 ARG NLS_ENABLED=false
 
-COPY ./distr /distr
+COPY distr /distr
 
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt/lists,sharing=locked <<'EOF'
@@ -14,16 +14,14 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
   chmod 777 -R /tmp
   apt-get update -qq
   DEBIAN_FRONTEND=noninteractive apt-get install -y -o=Dpkg::Use-Pty=0 --no-install-recommends \
-    libwebkitgtk-3.0-0
+    libwebkit2gtk-4.1-0
   if [ -d /usr/share/applications ]; then find /usr/share/applications -maxdepth 1 -name '*.desktop' -delete; fi
 EOF
 
 RUN --mount=type=cache,id=distr-cache,target=/var/cache/yard,sharing=locked \
-    --mount=type=secret,id=onec_username \
-    --mount=type=secret,id=onec_password <<'EOF'
+    --mount=type=secret,id=secrets_env <<'EOF'
   set -euxo pipefail
-  export ONEC_USERNAME="$(cat /run/secrets/onec_username)"
-  export ONEC_PASSWORD="$(cat /run/secrets/onec_password)"
+  set -a; . /run/secrets/secrets_env >/dev/null 2>&1; set +a
   onec-install --nls="$NLS_ENABLED" thin-client "$ONEC_VERSION"
 EOF
 
@@ -43,12 +41,12 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
   DEBIAN_FRONTEND=noninteractive apt-get install -y -o=Dpkg::Use-Pty=0 --no-install-recommends \
     locales \
     ca-certificates \
-    libwebkitgtk-3.0-0 \
+    libwebkit2gtk-4.1-0 \
     ttf-mscorefonts-installer \
     libfontconfig1 \
     libgsf-1-114 \
     libglib2.0-0 \
-    libodbc1 \
+    libodbc2 \
     libmagickwand-7.q16-10 \
     dbus-x11
   locale-gen ru_RU.UTF-8

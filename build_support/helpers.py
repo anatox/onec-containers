@@ -1,5 +1,7 @@
-def secrets_file(name: str) -> str:
-    return name
+GIT_SHA = env("GIT_SHA", "")
+GIT_SHA_SHORT = GIT_SHA[:7] if GIT_SHA else ""
+PUBLISH_LATEST = env("PUBLISH_LATEST", "false")
+CACHE_PREFIX = env("PANTS_DOCKER_CACHE_PREFIX", "")
 
 
 def _git_remote_url() -> str:

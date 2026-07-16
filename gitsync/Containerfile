@@ -1,9 +1,9 @@
-ARG BASE_IMAGE=localhost/onec-client:local
+ARG CLIENT_IMAGE
+ARG OSCRIPT_IMAGE=oscript:oscript
 
-FROM ${BASE_IMAGE} AS base
+FROM ${CLIENT_IMAGE} AS base
 
-ARG BASE_IMAGE=localhost/oscript:local
-FROM ${BASE_IMAGE}
+FROM ${OSCRIPT_IMAGE}
 LABEL org.opencontainers.image.authors="Anatolii Sereda <3011745+anatox@users.noreply.github.com>"
 
 ARG gitsync_ver=3.7.3
@@ -13,11 +13,6 @@ COPY --from=base /opt /opt
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt/lists,sharing=locked <<'EOF'
   set -eux
-  echo "deb http://http.debian.net/debian/ stretch main contrib non-free" > /etc/apt/sources.list.d/stretch.list
-  echo "deb http://http.debian.net/debian/ stretch-updates main contrib non-free" >> /etc/apt/sources.list.d/stretch-updates.list
-  echo "deb http://security.debian.org/ stretch/updates main contrib non-free" >> /etc/apt/sources.list.d/stretch-security-updates.list
-  echo ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula select true | debconf-set-selections
-  apt-get update -qq
   DEBIAN_FRONTEND=noninteractive apt-get install -y -o=Dpkg::Use-Pty=0 --no-install-recommends \
     dbus-x11
   locale-gen ru_RU.UTF-8

@@ -24,12 +24,20 @@ EOF
 ENV LANG=ru_RU.UTF-8
 
 # Install Executor (используем BuildKit secret)
-RUN --mount=type=secret,id=dev1c_executor_api_key <<'EOF'
+RUN --mount=type=secret,id=secrets_env \
+    --mount=type=cache,target=/var/cache/executor,sharing=locked <<'EOF'
   set -eux
-  curl -sSL --fail \
-    -H "X-Developer-1c-Api:$(cat /run/secrets/dev1c_executor_api_key)" \
-    -o executor.zip \
-    https://developer.1c.ru/applications/Console/api/v1/download/executor/${EXECUTOR_VERSION}/linux
+  set -a; . /run/secrets/secrets_env >/dev/null 2>&1; set +a
+  zip_path="/var/cache/executor/executor-${EXECUTOR_VERSION}.zip"
+  if [ -f "$zip_path" ]; then
+    cp "$zip_path" executor.zip
+  else
+    curl -sSL --fail \
+      -H "X-Developer-1c-Api:${DEV1C_EXECUTOR_API_KEY}" \
+      -o executor.zip \
+      https://developer.1c.ru/applications/Console/api/v1/download/executor/${EXECUTOR_VERSION}/linux
+    cp executor.zip "$zip_path"
+  fi
   unzip executor.zip
   rm executor.zip
   mkdir -p /opt/1C/executor

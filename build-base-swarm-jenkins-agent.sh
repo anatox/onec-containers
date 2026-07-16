@@ -12,15 +12,25 @@ export ONESCRIPT_VERSION="${ONESCRIPT_VERSION:-2.1.0}"
 ./build-installer.sh
 
 echo "=== onec-client ==="
-buildah build \
-    --secret=id=onec_username,env=ONEC_USERNAME \
-    --secret=id=onec_password,env=ONEC_PASSWORD \
+if [ -f secrets.env ]; then
+  buildah build \
+    --secret=id=secrets_env,src=secrets.env \
     --build-arg "INSTALLER_IMAGE=localhost/onec-installer:$YARD_VERSION" \
     --build-arg "ONEC_VERSION=$ONEC_VERSION" \
     -t localhost/onec-client:"$ONEC_VERSION" \
     -t localhost/onec-client:local \
     -f client/Containerfile \
     "${last_args[@]}"
+else
+  echo "WARNING: secrets.env not found; build may fail without credentials"
+  buildah build \
+    --build-arg "INSTALLER_IMAGE=localhost/onec-installer:$YARD_VERSION" \
+    --build-arg "ONEC_VERSION=$ONEC_VERSION" \
+    -t localhost/onec-client:"$ONEC_VERSION" \
+    -t localhost/onec-client:local \
+    -f client/Containerfile \
+    "${last_args[@]}"
+fi
 
 echo "=== onec-client-s6 ==="
 buildah build \

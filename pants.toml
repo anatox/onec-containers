@@ -1,5 +1,5 @@
 [GLOBAL]
-pants_version = "2.32.1"
+pants_version = "2.33.0a0"
 backend_packages = ["pants.backend.docker"]
 pants_ignore = [".kilo/"]
 build_file_prelude_globs = ["versions/*.py", "build_support/*.py"]

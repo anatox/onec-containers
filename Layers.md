@@ -106,6 +106,8 @@
 * crs
 * crs-apache
 
+Собирается через Pants.
+
 ## Toolbox-образы (distrobox)
 
 * edt-toolbox
@@ -118,4 +120,4 @@
 
 ## Примечание
 
-oscript, installer, client, server, crs и edt в свою очередь требуют предварительной сборки инструментальной цепочки `oscript → installer` (в CI — composite action `build-installer`, в локальных скриптах шаги явно прописаны). Исключение: oscript-агент использует `eclipse-temurin:17` напрямую.
+oscript, installer, client, server, crs собираются через Pants (нет отдельных build-скриптов). EDT и toolbox-образы требуют предварительной сборки `oscript → installer` (в CI — composite action `build-installer`, в локальных скриптах шаги явно прописаны). Исключение: oscript-агент использует `eclipse-temurin:17` напрямую.

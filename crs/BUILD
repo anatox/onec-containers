@@ -1,12 +1,12 @@
 # pyright: reportUndefinedVariable=false
 
-files(name="context", sources=["entrypoint.sh", "logcfg.xml"])
+files(name="context", sources=["entrypoint.sh"])
 
 for platform_version in PLATFORM_VERSIONS:
     docker_image(
-        name=f"onec-server-{platform_version}",
+        name=f"onec-crs-{platform_version}",
         source="Containerfile",
-        repository="onec-server",
+        repository="onec-crs",
         context_root=".",
         dependencies=[":context", "//distr:distr", "//scripts:installer", "//installer:onec-installer"],
         extra_build_args=[
@@ -17,6 +17,6 @@ for platform_version in PLATFORM_VERSIONS:
         image_tags=[platform_version]
             + ([f"{platform_version}-g{GIT_SHA_SHORT}"] if GIT_SHA_SHORT else ["local"])
             + (["latest"] if PUBLISH_LATEST == "true" and platform_version == max(PLATFORM_VERSIONS) else []),
-        image_labels=std_labels("1C:Enterprise server"),
-        **cache_args(CACHE_PREFIX, "onec-server"),
+        image_labels=std_labels("1C:Enterprise CRS"),
+        **cache_args(CACHE_PREFIX, "onec-crs"),
     )

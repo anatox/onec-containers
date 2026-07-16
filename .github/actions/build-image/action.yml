@@ -23,6 +23,9 @@ inputs:
   secrets:
     default: ''
     description: Multiline id=value secrets (used with RUN --mount=type=secret)
+  file_secrets:
+    default: ''
+    description: Multiline id=path secrets (newline-separated id=filePath, emitted as --secret=id=<id>,src=<path>)
   is_default_branch:
     default: 'false'
     description: Whether this is the default branch (enables 'latest' tag)
@@ -99,15 +102,25 @@ runs:
 
     - name: Derive extra-args from secrets
       id: extra-args
-      if: inputs.secrets != ''
+      if: inputs.secrets != '' || inputs.file_secrets != ''
       shell: bash
       run: |
         args=()
-        while IFS= read -r line; do
-          [ -z "$line" ] && continue
-          secret_id="${line%%=*}"
-          args+=("--secret=id=${secret_id},type=env")
-        done <<< "${{ inputs.secrets }}"
+        if [ -n "${{ inputs.secrets }}" ]; then
+          while IFS= read -r line; do
+            [ -z "$line" ] && continue
+            secret_id="${line%%=*}"
+            args+=("--secret=id=${secret_id},type=env")
+          done <<< "${{ inputs.secrets }}"
+        fi
+        if [ -n "${{ inputs.file_secrets }}" ]; then
+          while IFS= read -r line; do
+            [ -z "$line" ] && continue
+            secret_id="${line%%=*}"
+            secret_path="${line#*=}"
+            args+=("--secret=id=${secret_id},src=${secret_path}")
+          done <<< "${{ inputs.file_secrets }}"
+        fi
         echo 'args<<_EOF_' >> "$GITHUB_OUTPUT"
         printf '%s\n' "${args[@]}" >> "$GITHUB_OUTPUT"
         echo '_EOF_' >> "$GITHUB_OUTPUT"

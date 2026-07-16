@@ -36,14 +36,15 @@ RUN chmod +x /bin/gosu
 
 # Начало основной стадии сборки
 RUN --mount=type=cache,id=distr-cache,target=/var/cache/yard,sharing=locked \
-    --mount=type=secret,id=releases_env <<'EOF'
+    --mount=type=secret,id=secrets_env <<'EOF'
   set -euxo pipefail
-  set -a; . /run/secrets/releases_env >/dev/null 2>&1; set +a
+  set -a; . /run/secrets/secrets_env >/dev/null 2>&1; set +a
   onec-install --nls="$NLS_ENABLED" server "$ONEC_VERSION"
 EOF
 
 # Переход к финальному образу
-FROM ubuntu:26.04
+ARG BASE_IMAGE=ubuntu:26.04
+FROM ${BASE_IMAGE}
 LABEL org.opencontainers.image.authors="Anatolii Sereda <3011745+anatox@users.noreply.github.com>"
 
 ARG onec_uid="999"

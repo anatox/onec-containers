@@ -49,6 +49,15 @@ runs:
       with:
         is_default_branch: ${{ inputs.is_default_branch }}
 
+    - name: Write secrets env file
+      shell: bash
+      run: |
+        (umask 177 && cat > "$RUNNER_TEMP/secrets.env" <<'EOF'
+        ONEC_USERNAME=${{ inputs.ONEC_USERNAME }}
+        ONEC_PASSWORD=${{ inputs.ONEC_PASSWORD }}
+        EOF
+        )
+
     - name: Build image (onec-client)
       id: build-client
       uses: ./.github/actions/build-image
@@ -60,9 +69,7 @@ runs:
         build_args: |
           ONEC_VERSION=${{ inputs.ONEC_VERSION }}
           INSTALLER_IMAGE=${{ steps.build-installer.outputs.image-with-tag }}
-        secrets: |
-          onec_username=${{ inputs.ONEC_USERNAME }}
-          onec_password=${{ inputs.ONEC_PASSWORD }}
+        file_secrets: secrets_env=${{ runner.temp }}/secrets.env
         is_default_branch: ${{ inputs.is_default_branch }}
 
     - name: Build image (onec-client-s6)

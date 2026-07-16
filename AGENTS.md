@@ -1,10 +1,10 @@
 # GitHub Copilot Instructions for onec-containers
 
-> **Phase 1 Pants pilot active**: `oscript → installer → server` chain migrated to Pants 2.32 (`pants.backend.docker`). BUILD files in `oscript/`, `installer/`, `server/`. Versions in `versions/` (per-component `.py` files). CI via `release.yml` / `pr.yml` with `--changed-since`. Buildah + `build-*.sh` + git-tag releases still active for all other components. Server chain builds exclusively via `pants package server:` and `pants publish`. README presents target-state Pants-only usage — phase 1/2 details live here only.
-> - **Secrets**: `releases.env` (env-format, single `releases_env` secret mount). `releases.env.example` for reference.
+> **Phase 2 active**: `client`, `thin-client`, `crs`, `crs-apache`, `vanessa-runner`, `gitsync`, `executor` migrated to Pants. Pants version bumped to `2.33.0a0`. `rac-gui/` directory deleted (deprecated). Retired: `build-crs.sh`, `build-executor.sh`, `build-executor.yml`. Secrets file now `secrets.env` (id `secrets_env`) — includes `ONEC_USERNAME`, `ONEC_PASSWORD`, and `DEV1C_EXECUTOR_API_KEY`. Phase 1 server chain continues unchanged. Buildah + agent chains + git-tag releases still active for all phase-3 components (s6/vnc/jdk/test-utils/jenkins-agents/coverage/EDT/toolboxes).
+> - **Secrets**: `secrets.env` (env-format, single `secrets_env` secret mount). `secrets.env.example` for reference.
 > - **Local dev**: `.devcontainer/` recommended. `pants package server:onec-server-8.5.1.1343` builds the full chain.
 > - **Image tags**: `<version>`, `<version>-g<sha>` (immutable), `latest` (last version only, main branch), `local` (no publish).
-> - **Containerfile changes**: `oscript/Containerfile` LABEL moved after FROM (B1). `server/Containerfile` secrets consolidated to single `releases_env` mount (B5).
+> - **Containerfile changes**: `oscript/Containerfile` LABEL moved after FROM (B1). `server/Containerfile` secrets consolidated to single `secrets_env` mount (B5). All migrated Containerfiles use `secrets_env` mount, repo-root-relative COPY paths.
 
 ## Project Overview
 
@@ -78,7 +78,6 @@ Each directory represents a specific container image:
    ```containerfile
    FROM ${CONTAINER_REGISTRY_URL:+"$CONTAINER_REGISTRY_URL/"}base-image:tag
    ```
-   Exception: Pants-managed Containerfiles that already have a target-address FROM-arg must not add a registry-ref FROM-arg (hardcode such bases instead) — see the Pants 2.32 FROM-arg bug below.
 5. **Labels**: Include maintainer information
 6. **Layer optimization**: Combine RUN commands to minimize layers
 
@@ -138,9 +137,10 @@ Follow existing pattern for Make targets:
 ### Sensitive Information
 
 - Never hardcode credentials in Containerfiles or scripts
-- Use `--mount=type=secret` for credentials (`onec_username`, `onec_password`), never pass through ARG or ENV
+- Use `--mount=type=secret` for credentials, never pass through ARG or ENV
+- Pants components use a single `secrets_env` secret mount (the env file is sourced, so all vars are available)
+- Buildah components in phase 3 still use two-mount `onec_username`/`onec_password` pattern
 - Use build arguments for non-sensitive config (`ONEC_VERSION`, `CONTAINER_REGISTRY_URL`)
-- Pass secrets to `buildah build` via `--secret=id=onec_username,env=ONEC_USERNAME`
 - Provide example files (`.example` suffix) for configuration
 - Use environment variables for runtime configuration
 
@@ -155,7 +155,7 @@ Follow existing pattern for Make targets:
 - **Every image has a Containerfile in its own directory** and an optional `build-<component>.sh` for local dev builds. CI uses composite actions instead.
 - **Build scripts vs CI**: `build-*.sh` scripts are for local development. CI workflows (`.github/workflows/build-*.yml`) use the composite actions but follow the same layer order. Never assume a build script exists for a CI-built image.
 - **`scripts/installer/` is the `onec-install` toolchain**: `bin/onec-install` dispatches to `libexec/`. Other scripts in `scripts/` are copied into Containerfiles at build time.
-- **Image naming convention**: `localhost/<name>:<tag>` for local, `ghcr.io/<owner>/<name>:<tag>` for published. Container names include `onec-<component>`, `executor`, `edt-toolbox`, `client-toolbox`, `gitsync`, `rac-gui`.
+- **Image naming convention**: `localhost/<name>:<tag>` for local, `ghcr.io/<owner>/<name>:<tag>` for published. Container names include `onec-<component>`, `executor`, `edt-toolbox`, `client-toolbox`, `gitsync`.
 - **Toolbox images** use `quay.io/toolbx/ubuntu-toolbox:26.04` base instead of `ubuntu:26.04`. The toolbox label is already set by the base image; Containerfiles add distrobox shims for host-forwarding.
 
 ## Files That Must Change Together
@@ -178,8 +178,8 @@ Follow existing pattern for Make targets:
 
 - PostgreSQL image is not standard: `compose.yaml` uses `rsyuzyov/docker-postgresql-pro-1c`, a third-party image with 1C-compatible extensions.
 - RAS reuses server image: `compose.yaml` runs `ras` service from `onec-server` image with entrypoint override to `/opt/1cv8/current/ras`.
-- `gitsync` adds Debian Stretch repos (EOL Debian 9) for `ttf-mscorefonts-installer` and `dbus-x11`.
-- Manual-only images (no CI workflow): `thin-client`, `vanessa-runner`, `gitsync`, `rac-gui`, `oscript-utils`.
+- `gitsync` uses COPY --from phase-2 client for 1C platform and oscript base — no Debian Stretch repos.
+- Manual-only images (no CI workflow): `oscript-utils` (deferred, needs refactor).
 
 ## Key Workarounds
 
@@ -197,17 +197,19 @@ Follow existing pattern for Make targets:
 - Cache mount `distr-cache` (`/var/cache/yard`) is shared across all Containerfiles for downloaded 1C distributions.
 - Local `distr/` directory is copied into installer stage for offline builds; `yard-download.sh` auto-detects matching archives.
 
-### Pants (Phase 1 — server chain only)
+### Pants (Phase 2 — server chain + client family)
 
 - `build_file_prelude_globs = ["versions/*.py", "build_support/*.py"]` injects those files' variables directly into every BUILD file scope — no imports needed.
 - `pants.ci.toml` activates `use_buildx = true` and configures `[docker.registries.ghcr]` for GHCR push. CI sets `PANTS_CONFIG_FILES=pants.ci.toml`.
 - `PLATFORM_VERSIONS` is a tuple, not a list. Use `max()` for latest-version logic, not `[-1]` — Pants' BUILD evaluator doesn't reliably support negative tuple indexing.
 - Pants `docker_image` resolves inter-image dependencies via target names (e.g. `oscript:oscript`), not localhost tags. Containerfile `FROM` ARGs use target-named references like `ARG BASE_IMAGE=oscript:oscript`.
-- Secrets under Pants: `server/BUILD` declares `secrets={"releases_env": secrets_file("releases.env")}`. The Containerfile reads a single file secret via `--mount=type=secret,id=releases_env` and sources it: `set -a; . /run/secrets/releases_env`. The `secrets_file()` helper is a pass-through identity function — a semantic marker required by Pants API.
+- Secrets under Pants: BUILD files declare `secrets={"secrets_env": secrets_file("secrets.env")}`. Containerfiles read a single file secret via `--mount=type=secret,id=secrets_env` and source it: `set -a; . /run/secrets/secrets_env >/dev/null 2>&1; set +a`. The `secrets_file()` helper is a pass-through identity function — a semantic marker required by Pants API.
 - `cache_args()` returns `cache_to`/`cache_from` dicts for registry-backed layer caching (`mode: "max"` for all layers). Only active when `PANTS_DOCKER_CACHE_PREFIX` env var is set.
 - `server/BUILD` uses `context_root="."` so the build context is the repo root. All Containerfile COPY paths are repo-root-relative (e.g. `COPY server/entrypoint.sh /...`, not `COPY ./server/entrypoint.sh /...`). Without this, Pants defaults to per-directory context and cross-directory COPYs fail.
-- **Pants 2.32 FROM-arg bug (pantsbuild/pants#23425), FIXED in 2.33**: on Pants < 2.33, a Containerfile must not mix target-address FROM-args (`ARG INSTALLER_IMAGE=installer:onec-installer`) with plain registry-ref FROM-args (`ARG BASE_IMAGE=ubuntu:26.04`). Pants drops non-target values during address resolution and then mispairs the rest: the registry-ref ARG silently receives the built image's tag and the target-address ARG stays unresolved, so buildx tries to pull it from docker.io (`pull access denied ... docker.io/library/installer`). Uniform FROM-args are safe: multiple FROM-args that are ALL target addresses pair correctly, as do all-registry-ref ones — only the mix breaks. Current workaround (`pants_version = "2.32.1"`): don't mix — `server/Containerfile` hardcodes `FROM ubuntu:26.04` (no `ARG BASE_IMAGE`) for this reason; `installer/Containerfile`'s single FROM-arg (`oscript:oscript`) is unaffected. Fixed upstream by pantsbuild/pants#23425, merged into `main` 2026-07-07 and first released in **2.33.0a0** (verified: built the original mixed-ARG Containerfile successfully with `PANTS_VERSION=2.33.0a0`). Once `pants_version` is bumped to >= 2.33.0 (stable), mixed FROM-args are safe again and the hardcoded `FROM ubuntu:26.04` workaround can be reverted to `ARG BASE_IMAGE=ubuntu:26.04` if desired.
-- **Podman under Pants**: not viable while registry caching matters — `cache_to`/`cache_from` are BuildKit-only fields (require `use_buildx = true`, buildx `type=registry,ref=` syntax); Pants (through 2.33) does not translate them to podman's `--cache-from` form, so switching drops registry layer caching. Keep `use_buildx = true`.
+- **No redundant `extra_build_args`**: never pass a build arg whose value equals the Containerfile ARG default. Image-ref FROM-args (e.g. `ARG BASE_IMAGE=ubuntu:26.04`) live as Containerfile defaults; `extra_build_args` only for values that genuinely vary (versions from `versions/*.py`, per-version target addresses like `BASE_IMAGE=crs:onec-crs-8.5.1.1343`).
+- **Duplicate ARG constraint**: Pants' parser (`duplicates_must_match=True`) rejects Containerfiles that redeclare the same ARG name with different defaults. Use distinct ARG names for distinct purposes (e.g. `CLIENT_IMAGE` + `OSCRIPT_IMAGE` in gitsync instead of dual `BASE_IMAGE`).
+- **Pants 2.32 FROM-arg bug (pantsbuild/pants#23425), FIXED in 2.33.0a0**: on Pants < 2.33, a Containerfile must not mix target-address FROM-args (`ARG INSTALLER_IMAGE=installer:onec-installer`) with plain registry-ref FROM-args (`ARG BASE_IMAGE=ubuntu:26.04`). Fixed upstream, merged into `main` 2026-07-07, first released in **2.33.0a0**. With the bump to 2.33.0a0, mixed FROM-args are safe again. Track: bump to 2.33.0 stable when released.
+- **build-image action `file_secrets`**: optional `file_secrets` input (newline-separated `id=path`) emits `--secret=id=<id>,src=<path>` for buildah builds. Used by phase-3 agent chains that need to pass `secrets.env` as a file secret.
 
 ## Git Tag-Based CI
 

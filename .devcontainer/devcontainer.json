@@ -21,7 +21,7 @@
 	"customizations": {
 		"vscode": {
 			"extensions": [
-				"robotpajamas.vscode-suspenders",
+				"robotpajamas.vscode-suspenders@prerelease",
 				"tamasfe.even-better-toml"
 			]
 		}

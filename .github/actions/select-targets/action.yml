@@ -55,10 +55,10 @@ runs:
 
         filter_expr='.'
         if [[ "${{ inputs.filter_toolchain }}" == "true" ]]; then
-          filter_expr='select(test("oscript|installer") | not)'
+          filter_expr='select(test("^(oscript:|installer:)") | not)'
         fi
 
-        matrix_json="$(echo "$targets_json" | jq -c '[.[] | '"${filter_expr}"' | {target: ., name: (split(":")[0] | split("/")[-1]) + " " + (split(":")[1] | capture("^(?<prefix>.*?)-(?<ver>[0-9][0-9.]*)$") | .ver)}]')"
+        matrix_json="$(echo "$targets_json" | jq -c '[.[] | '"${filter_expr}"' | {target: ., name: ((split(":")[0] | split("/")[-1]) + ((split(":")[1] | capture("-(?<ver>[0-9][0-9.]*)$")? | " " + .ver) // ""))}]')"
 
         mapfile -t target_arr < <(echo "$matrix_json" | jq -r '.[].target')
         repo_map="{}"

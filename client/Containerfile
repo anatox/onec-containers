@@ -1,5 +1,5 @@
 ARG BASE_IMAGE=ubuntu:26.04
-ARG INSTALLER_IMAGE=localhost/onec-installer:local
+ARG INSTALLER_IMAGE=installer:onec-installer
 
 FROM ${INSTALLER_IMAGE} AS installer
 
@@ -7,7 +7,7 @@ ARG ONEC_VERSION
 ARG NLS_ENABLED=false
 
 # Копирование локальных дистрибутивов
-COPY ./distr /distr
+COPY distr /distr
 
 # Установка gnupg и wget
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
@@ -47,16 +47,14 @@ EOF
 
 # Начало основной стадии сборки
 RUN --mount=type=cache,id=distr-cache,target=/var/cache/yard,sharing=locked \
-    --mount=type=secret,id=onec_username \
-    --mount=type=secret,id=onec_password <<'EOF'
+    --mount=type=secret,id=secrets_env <<'EOF'
   set -euxo pipefail
-  export ONEC_USERNAME="$(cat /run/secrets/onec_username)"
-  export ONEC_PASSWORD="$(cat /run/secrets/onec_password)"
+  set -a; . /run/secrets/secrets_env >/dev/null 2>&1; set +a
   if [ -d /usr/share/applications ]; then find /usr/share/applications -maxdepth 1 -name '*.desktop' -delete; fi
   onec-install --nls="$NLS_ENABLED" client "$ONEC_VERSION"
 EOF
 
-COPY ./client/configs/current/ /opt/1cv8/current/
+COPY client/configs/current/ /opt/1cv8/current/
 
 # Переход к финальному образу
 FROM ${BASE_IMAGE}

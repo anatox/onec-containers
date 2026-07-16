@@ -97,9 +97,11 @@ jobs:
       - name: Write secret files
         shell: bash
         run: |
-          cat > releases.env <<'ENV'
+          umask 177
+          cat > secrets.env <<'ENV'
           ONEC_USERNAME=${{ secrets.ONEC_USERNAME }}
           ONEC_PASSWORD=${{ secrets.ONEC_PASSWORD }}
+          DEV1C_EXECUTOR_API_KEY=${{ secrets.DEV1C_EXECUTOR_API_KEY }}
           ENV
 
       - name: Export build environment
@@ -131,11 +133,11 @@ jobs:
         if: (github.event_name != 'workflow_dispatch' || inputs.publish) && vars.PUBLISH != 'false'
         shell: bash
         run: |
-          target_name="$(echo '${{ matrix.target }}' | awk -F: '{print $2}' | sed 's/^onec-server-//')"
           sha_short="${{ github.sha }}"
           sha_short="${sha_short:0:7}"
           repo="${{ matrix.repo }}"
-          digest="$(docker buildx imagetools inspect "${REGISTRY_PREFIX}/${repo}:${target_name}-g${sha_short}" --format '{{println .Manifest.Digest}}' | tr -d '\n')"
+          tag="$(pants peek '${{ matrix.target }}' | jq -r --arg s "-g${sha_short}" '.[0].image_tags[] | select(endswith($s))' | head -1)"
+          digest="$(docker buildx imagetools inspect "${REGISTRY_PREFIX}/${repo}:${tag}" --format '{{println .Manifest.Digest}}' | tr -d '\n')"
           cosign sign -y --key env://COSIGN_PRIVATE_KEY \
             "${REGISTRY_PREFIX}/${repo}@${digest}"
         env:

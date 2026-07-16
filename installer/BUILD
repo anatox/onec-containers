@@ -1,3 +1,5 @@
+# pyright: reportUndefinedVariable=false
+
 files(name="context", sources=["entrypoint.sh"])
 
 docker_image(

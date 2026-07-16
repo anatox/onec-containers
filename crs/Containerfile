@@ -1,5 +1,5 @@
-ARG BASE_IMAGE=quay.io/toolbx/ubuntu-toolbox:26.04
-ARG INSTALLER_IMAGE=localhost/onec-installer:local
+ARG BASE_IMAGE=ubuntu:26.04
+ARG INSTALLER_IMAGE=installer:onec-installer
 
 FROM ${INSTALLER_IMAGE} AS installer
 
@@ -8,7 +8,7 @@ ARG GOSU_VER=1.11
 ARG NLS_ENABLED=false
 
 # Копирование локальных дистрибутивов
-COPY ./distr /distr
+COPY distr /distr
 
 RUN <<'EOF'
   set -euxo pipefail
@@ -34,11 +34,9 @@ RUN chmod +x /bin/gosu
 
 # Начало основной стадии сборки
 RUN --mount=type=cache,id=distr-cache,target=/var/cache/yard,sharing=locked \
-    --mount=type=secret,id=onec_username \
-    --mount=type=secret,id=onec_password <<'EOF'
+    --mount=type=secret,id=secrets_env <<'EOF'
   set -euxo pipefail
-  export ONEC_USERNAME="$(cat /run/secrets/onec_username)"
-  export ONEC_PASSWORD="$(cat /run/secrets/onec_password)"
+  set -a; . /run/secrets/secrets_env >/dev/null 2>&1; set +a
   onec-install --nls="$NLS_ENABLED" server_crs "$ONEC_VERSION"
 EOF
 
@@ -72,7 +70,7 @@ EOF
 
 VOLUME /home/usr1cv8/.1cv8
 
-COPY ./crs/entrypoint.sh /usr/local/bin/entrypoint.sh
+COPY crs/entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN ln -s usr/local/bin/entrypoint.sh /  # backwards compat
 RUN chmod +x /usr/local/bin/entrypoint.sh
 
