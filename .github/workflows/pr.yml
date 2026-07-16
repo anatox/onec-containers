@@ -52,6 +52,14 @@ jobs:
         with:
           named-caches-hash: ${{ hashFiles('versions/*.py', 'build_support/*.py') }}
 
+      - name: Write secret files
+        shell: bash
+        run: |
+          cat > releases.env <<'ENV'
+          ONEC_USERNAME=${{ secrets.ONEC_USERNAME }}
+          ONEC_PASSWORD=${{ secrets.ONEC_PASSWORD }}
+          ENV
+
       - name: Export build environment
         shell: bash
         run: |
