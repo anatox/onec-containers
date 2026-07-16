@@ -2,16 +2,33 @@ def secrets_file(name: str) -> str:
     return name
 
 
+def _git_remote_url() -> str:
+    try:
+        subprocess = __import__("subprocess")
+        url = subprocess.run(
+            ["git", "remote", "get-url", "origin"],
+            capture_output=True, text=True, timeout=5,
+        ).stdout.strip()
+        if url:
+            if url.startswith("git@"):
+                url = "https://" + url.split("@")[1].replace(":", "/")
+            if url.endswith(".git"):
+                url = url[:-4]
+            return url
+    except Exception:
+        pass
+    return ""
+
+
 def std_labels(title: str) -> dict[str, str]:
-    return {
-        "org.opencontainers.image.vendor": env("GITHUB_REPOSITORY_OWNER", "local"),
-        "org.opencontainers.image.source": (
-            "https://github.com/" + env("GITHUB_REPOSITORY", "")
-            if env("GITHUB_REPOSITORY", "")
-            else "local"
-        ),
-        "org.opencontainers.image.title": title,
-    }
+    labels: dict[str, str] = {"org.opencontainers.image.title": title}
+    vendor = env("GIT_OWNER", "")
+    if vendor:
+        labels["org.opencontainers.image.vendor"] = vendor
+    source = env("GIT_URL", "") or _git_remote_url()
+    if source:
+        labels["org.opencontainers.image.source"] = source
+    return labels
 
 
 def cache_args(prefix: str, name: str) -> dict:
