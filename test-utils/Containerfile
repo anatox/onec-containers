@@ -1,7 +1,8 @@
-LABEL org.opencontainers.image.authors="Anatolii Sereda <3011745+anatox@users.noreply.github.com>"
 ARG BASE_IMAGE
 
 FROM ${BASE_IMAGE}
+
+LABEL org.opencontainers.image.authors="Anatolii Sereda <3011745+anatox@users.noreply.github.com>"
 
 ARG TEST_UTILS_EXTRA_PACKAGES=""
 
