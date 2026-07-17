@@ -75,9 +75,7 @@
 
 * edt
 
-Реализовано в скриптах:
-
-* [build-edt.sh](build-edt.sh)
+Собирается через Pants (`pants package edt:edt-2026.1.2`). Для phase-4 локальной сборки агентов: `buildah build --secret=id=secrets_env,src=secrets.env --build-arg INSTALLER_IMAGE=localhost/onec-installer:local --build-arg EDT_VERSION=2026.1.2 -f edt/Containerfile .`
 
 ## EDT как Jenkins агент
 
@@ -110,14 +108,11 @@
 
 ## Toolbox-образы (distrobox)
 
-* edt-toolbox
-* client-toolbox (поверх edt-toolbox)
+* edt-toolbox = EDT поверх ubuntu-toolbox
+* edt-toolbox-client = edt-toolbox + client файлы (COPY --from onec-client)
 
-Реализовано в скриптах:
-
-* [build-client-toolbox.sh](build-client-toolbox.sh)
-* [build-edt-toolbox.sh](build-edt-toolbox.sh)
+Собираются через Pants (`pants package client:client-toolbox-8.5.1.1343`, `pants package edt:edt-toolbox-2026.1.2-client-8.5.1.1343`). Клиентские файлы попадают из собранного `onec-client` образа через `COPY --from=client-src`, а не через повторный `onec-install client`.
 
 ## Примечание
 
-oscript, installer, client, server, crs собираются через Pants (нет отдельных build-скриптов). EDT и toolbox-образы требуют предварительной сборки `oscript → installer` (в CI — composite action `build-installer`, в локальных скриптах шаги явно прописаны). Исключение: oscript-агент использует `eclipse-temurin:17` напрямую.
+oscript, installer, client, client-toolbox, edt, edt-toolbox, server, crs, thin-client, vanessa-runner, gitsync, executor собираются через Pants (нет отдельных build-скриптов). EDT toolbox-образы требуют предварительной сборки `oscript → installer`. Исключение: oscript-агент использует `eclipse-temurin:17` напрямую.

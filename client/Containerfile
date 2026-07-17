@@ -56,12 +56,8 @@ EOF
 
 COPY client/configs/current/ /opt/1cv8/current/
 
-# Переход к финальному образу
-FROM ${BASE_IMAGE}
+FROM ${BASE_IMAGE} AS base
 LABEL org.opencontainers.image.authors="Anatolii Sereda <3011745+anatox@users.noreply.github.com>"
-
-ARG onec_uid="999"
-ARG onec_gid="999"
 
 # Установка gnupg и wget
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
@@ -80,20 +76,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
   set -euxo pipefail
   apt-get update -qq
   echo "ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula select true" | debconf-set-selections
-  DEBIAN_FRONTEND=noninteractive apt-get install -y -o=Dpkg::Use-Pty=0 --no-install-recommends \
-    locales \
-    ca-certificates \
-    libgtk2.0-0t64 \
-    libwebkit2gtk-4.1-0 \
-    ttf-mscorefonts-installer \
-    libfontconfig1 \
-    libgsf-1-114 \
-    libglib2.0-0 \
-    libodbc2 \
-    libmagickwand-7.q16-10 \
-    dbus-x11 \
-    libsm6 \
-    libglu1-mesa
+  DEBIAN_FRONTEND=noninteractive xargs apt-get install -y -o=Dpkg::Use-Pty=0 --no-install-recommends < client/packages.txt
   locale-gen ru_RU.UTF-8
   if [ -d /usr/share/applications ]; then find /usr/share/applications -maxdepth 1 -name '*.desktop' -delete; fi
 EOF
@@ -106,6 +89,21 @@ ENV LC_ALL=ru_RU.UTF-8
 COPY --from=installer /opt /opt
 COPY --from=installer /usr/share/icons /usr/share/icons
 COPY --from=installer /usr/share/applications /usr/share/applications
+
+FROM base AS toolbox
+COPY scripts/distrobox-shims.sh /distrobox-shims.sh
+
+RUN <<'EOF'
+  set -euxo pipefail
+  chmod +x /distrobox-shims.sh
+  /distrobox-shims.sh
+  rm /distrobox-shims.sh
+EOF
+
+FROM base AS client
+
+ARG onec_uid="999"
+ARG onec_gid="999"
 
 RUN <<'EOF'
   set -euxo pipefail

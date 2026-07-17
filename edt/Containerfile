@@ -1,6 +1,7 @@
 ARG BASE_IMAGE=ubuntu:26.04
-ARG INSTALLER_IMAGE=localhost/onec-installer:local
-ARG EDT_VERSION=2025.2.6
+ARG INSTALLER_IMAGE=installer:onec-installer
+ARG EDT_VERSION
+ARG CLIENT_IMAGE=scratch
 
 FROM ${INSTALLER_IMAGE} AS installer
 
@@ -8,37 +9,35 @@ LABEL org.opencontainers.image.authors="Anatolii Sereda <3011745+anatox@users.no
 
 ARG EDT_VERSION
 
-COPY ./distr /distr
-COPY --chmod=755 ./scripts/install-edt-jdk.sh /install-edt-jdk.sh
+COPY distr /distr
+COPY --chmod=755 edt/install-edt-jdk.sh /install-edt-jdk.sh
 
 # Установка JDK и библиотек для EDT
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt/lists,sharing=locked <<'EOF'
   set -euxo pipefail
+  apt-get update -qq
   /install-edt-jdk.sh "$EDT_VERSION"
 
-  apt-get update -qq
   DEBIAN_FRONTEND=noninteractive apt-get install -y -o=Dpkg::Use-Pty=0 --no-install-recommends \
-    curl \
-    libgtk-3-0t64 \
-    locales \
     libc-bin \
     coreutils
+  DEBIAN_FRONTEND=noninteractive xargs apt-get install -y -o=Dpkg::Use-Pty=0 --no-install-recommends < edt/packages.txt
   locale-gen ru_RU.UTF-8
   if [ -d /usr/share/applications ]; then find /usr/share/applications -maxdepth 1 -name '*.desktop' -delete; fi
 EOF
 
 # Скачивание и установка EDT
 RUN --mount=type=cache,id=distr-cache,target=/var/cache/yard,sharing=locked \
-    --mount=type=secret,id=onec_username \
-    --mount=type=secret,id=onec_password <<'EOF'
+    --mount=type=secret,id=secrets_env <<'EOF'
   set -euxo pipefail
-  export ONEC_USERNAME="$(cat /run/secrets/onec_username)"
-  export ONEC_PASSWORD="$(cat /run/secrets/onec_password)"
+  set -a; . /run/secrets/secrets_env >/dev/null 2>&1; set +a
   onec-install edt "$EDT_VERSION"
 EOF
 
-FROM ${BASE_IMAGE}
+FROM ${CLIENT_IMAGE} AS client-src
+
+FROM ${BASE_IMAGE} AS base
 
 LABEL org.opencontainers.image.authors="Anatolii Sereda <3011745+anatox@users.noreply.github.com>"
 
@@ -46,8 +45,8 @@ ARG EDT_VERSION
 
 WORKDIR /tmp
 
-COPY --chmod=755 ./scripts/install-edt-jdk.sh /install-edt-jdk.sh
-COPY --chmod=755 ./scripts/install-edt-nginx.sh /install-edt-nginx.sh
+COPY --chmod=755 edt/install-edt-jdk.sh /install-edt-jdk.sh
+COPY --chmod=755 edt/install-edt-nginx.sh /install-edt-nginx.sh
 
 # Установка JDK и библиотек для финального образа
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
@@ -56,11 +55,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
   apt-get update -qq
   /install-edt-jdk.sh "$EDT_VERSION"
 
-  DEBIAN_FRONTEND=noninteractive apt-get install -y -o=Dpkg::Use-Pty=0 --no-install-recommends \
-    curl \
-    libgtk-3-0t64 \
-    locales \
-    libxtst6
+  DEBIAN_FRONTEND=noninteractive xargs apt-get install -y -o=Dpkg::Use-Pty=0 --no-install-recommends < edt/packages.txt
   locale-gen ru_RU.UTF-8
   if [ -d /usr/share/applications ]; then find /usr/share/applications -maxdepth 1 -name '*.desktop' -delete; fi
   /install-edt-nginx.sh
@@ -78,3 +73,39 @@ COPY --from=installer /usr/share/applications /usr/share/applications
 
 ENV JAVA_HOME=/opt/1C/1CE/components/jdk-current
 ENV PATH="$JAVA_HOME/bin:/opt/1C/1CE/components/1c-edt-current:/opt/1C/1CE/components/1c-edt-start-current:$PATH"
+
+FROM base AS toolbox
+COPY scripts/distrobox-shims.sh /distrobox-shims.sh
+
+RUN <<'EOF'
+  set -euxo pipefail
+  chmod +x /distrobox-shims.sh
+  /distrobox-shims.sh
+  rm /distrobox-shims.sh
+EOF
+
+FROM toolbox AS toolbox-client
+
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt/lists,sharing=locked <<'EOF'
+  set -euxo pipefail
+  apt-get update -qq
+  echo "ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula select true" | debconf-set-selections
+  DEBIAN_FRONTEND=noninteractive xargs apt-get install -y -o=Dpkg::Use-Pty=0 --no-install-recommends < client/packages.txt
+  if [ -d /usr/share/applications ]; then find /usr/share/applications -maxdepth 1 -name '*.desktop' -delete; fi
+EOF
+
+COPY --from=client-src /opt /opt
+COPY --from=client-src /usr/share/icons /usr/share/icons
+COPY --from=client-src /usr/share/applications /usr/share/applications
+
+COPY scripts/distrobox-shims.sh /distrobox-shims.sh
+
+RUN <<'EOF'
+  set -euxo pipefail
+  chmod +x /distrobox-shims.sh
+  /distrobox-shims.sh
+  rm /distrobox-shims.sh
+EOF
+
+FROM base AS edt

@@ -243,7 +243,7 @@ pants package vanessa-runner:runner
 [(Наверх)](#оглавление)
 
 ```bash
-pants package edt:edt-2025.2.6
+pants package edt:edt-2026.1.2
 ```
 
 ## Исполнитель
@@ -263,46 +263,18 @@ pants package executor:executor-7.0.3.3
 
 ### Сборка CI (GitHub Actions)
 
-Toolbox-образы собираются через `workflow_dispatch` в соответствующих workflows:
+Toolbox-образы собираются в `release.yml` как часть общей Pants-матрицы. Целевые таргеты:
 
-- `.github/workflows/build-client-toolbox.yml` — сборка `client-toolbox`
-- `.github/workflows/build-edt-toolbox.yml` — сборка `edt-toolbox`
+- `client:client-toolbox-8.5.1.1343` — сборка `client-toolbox`
+- `edt:edt-toolbox-2026.1.2-client-8.5.1.1343` — сборка `edt-toolbox`
 
-Для PR в `main` сборка автоматически проверяется (без публикации). Включение/выключение PR-сборки контролируется переменными репозитория:
-
-| Переменная | Назначение |
-|---|---|
-| `BUILD_CLIENT_TOOLBOX` | `!= 'false'` включает сборку client-toolbox |
-| `BUILD_EDT_TOOLBOX` | `!= 'false'` включает сборку edt-toolbox |
-
-Необходимые секреты репозитория:
-
-| Секрет | Описание |
-|---|---|
-| `ONEC_USERNAME` | Логин на releases.1c.ru |
-| `ONEC_PASSWORD` | Пароль на releases.1c.ru |
-
-Необходимые переменные репозитория (Variables — опционально, используются defaults из workflow):
-
-| Переменная | Назначение |
-|---|---|
-| `BUILD_CLIENT_TOOLBOX` | `!= 'false'` включает PR-сборку client-toolbox |
-| `BUILD_EDT_TOOLBOX` | `!= 'false'` включает PR-сборку edt-toolbox |
-
-Workflow defaults для версий:
-
-| Компонент | Значение по умолчанию |
-|---|---|
-| Платформа 1С | `8.5.1.1343` |
-| EDT | `2025.2.6` |
-| OneScript | `2.1.0` |
-| Executor | `7.0.3.3` |
+Теги: `<version>`, `<version>-g<sha>` (иммутабельный), `latest` (последняя версия, main).
 
 ### Локальная сборка Toolbox-образов
 
 ```bash
-pants package edt-toolbox:edt-toolbox-2025.2.6
-pants package client-toolbox:client-toolbox-8.5.1.1343
+pants package client:client-toolbox-8.5.1.1343
+pants package edt:edt-toolbox-2026.1.2-client-8.5.1.1343
 ```
 
 Для использования с distrobox после сборки:

@@ -1,6 +1,6 @@
 # GitHub Copilot Instructions for onec-containers
 
-> **Phase 2 active**: `client`, `thin-client`, `crs`, `crs-apache`, `vanessa-runner`, `gitsync`, `executor` migrated to Pants. Pants version bumped to `2.33.0a0`. `rac-gui/` directory deleted (deprecated). Retired: `build-crs.sh`, `build-executor.sh`, `build-executor.yml`. Secrets file now `secrets.env` (id `secrets_env`) — includes `ONEC_USERNAME`, `ONEC_PASSWORD`, and `DEV1C_EXECUTOR_API_KEY`. Phase 1 server chain continues unchanged. Buildah + agent chains + git-tag releases still active for all phase-3 components (s6/vnc/jdk/test-utils/jenkins-agents/coverage/EDT/toolboxes).
+> **Phase 3 active**: `client-toolbox`, `edt`, `edt-toolbox` migrated to Pants. Layering unchanged: `edt-toolbox-client` = client files `COPY --from`'d onto EDT toolbox base (no separate `-base` image). `target_stage` idiom now in use (`client/Containerfile`: `client`/`toolbox`, `edt/Containerfile`: `edt`/`toolbox`/`toolbox-client`). `client-toolbox/`, `edt-toolbox/` directories deleted (merged into `client/` and `edt/`). `scripts/install-edt-jdk.sh`, `scripts/install-edt-nginx.sh` moved to `edt/`. Retired: `build-edt.sh`, `build-client-toolbox.sh`, `build-edt-toolbox.sh`, `.github/workflows/build-client-toolbox.yml`, `.github/workflows/build-edt-toolbox.yml`. Phase 4 upcoming: s6/vnc/jdk/test-utils/jenkins-agents/coverage/oscript-utils.
 > - **Secrets**: `secrets.env` (env-format, single `secrets_env` secret mount). `secrets.env.example` for reference.
 > - **Local dev**: `.devcontainer/` recommended. `pants package server:onec-server-8.5.1.1343` builds the full chain.
 > - **Image tags**: `<version>`, `<version>-g<sha>` (immutable), `latest` (last version only, main branch), `local` (no publish).
@@ -36,15 +36,13 @@ This repository contains container configurations for building images with 1C:En
 Each directory represents a specific container image:
 
 - `server/`: 1C:Enterprise server
-- `client/`: 1C:Enterprise thick client
+- `client/`: 1C:Enterprise thick client (also builds `client-toolbox` via stage)
 - `thin-client/`: 1C:Enterprise thin client
-- `edt/`: Enterprise Development Tools
+- `edt/`: Enterprise Development Tools (also builds `edt-toolbox` via stage)
 - `oscript/`: OneScript runtime
 - `vanessa-runner/`: Testing framework
 - `swarm-jenkins-agent/` and `k8s-jenkins-agent/`: CI/CD agents
 - `coverage41C/`: Code coverage tools
-- `client-toolbox/`: 1C:Enterprise client layer for Toolbox/Distrobox
-- `edt-toolbox/`: EDT Toolbox image
 
 ### Build Scripts Pattern
 
@@ -171,7 +169,7 @@ Follow existing pattern for Make targets:
 - Coverage agent builds on top of base-jenkins-agent plus EDT (for JAR extraction): `coverage41C/Containerfile` copies debug plugin JARs from a separately built EDT image.
 - OScript agent uses `eclipse-temurin:17` base directly, no `oscript -> installer` prerequisite.
 - `s6-overlay` is always a layer between app and agent, never the base or top.
-- `client-toolbox/Containerfile` is reused as a generic "add 1C client to any base" layer by `build-edt-toolbox` workflow.
+  - `client-toolbox/Containerfile` was merged into `client/Containerfile` via `target_stage="toolbox"`. EDT toolbox client variant is layered in `edt/Containerfile` (COPY --from client-src on top of EDT toolbox base).
 - Containers reference base images with single `BASE_IMAGE=<name>:<tag>` (no separate `BASE_TAG` arg).
 
 ## Non-Obvious Dependencies
@@ -208,8 +206,11 @@ Follow existing pattern for Make targets:
 - `server/BUILD` uses `context_root="."` so the build context is the repo root. All Containerfile COPY paths are repo-root-relative (e.g. `COPY server/entrypoint.sh /...`, not `COPY ./server/entrypoint.sh /...`). Without this, Pants defaults to per-directory context and cross-directory COPYs fail.
 - **No redundant `extra_build_args`**: never pass a build arg whose value equals the Containerfile ARG default. Image-ref FROM-args (e.g. `ARG BASE_IMAGE=ubuntu:26.04`) live as Containerfile defaults; `extra_build_args` only for values that genuinely vary (versions from `versions/*.py`, per-version target addresses like `BASE_IMAGE=crs:onec-crs-8.5.1.1343`).
 - **Duplicate ARG constraint**: Pants' parser (`duplicates_must_match=True`) rejects Containerfiles that redeclare the same ARG name with different defaults. Use distinct ARG names for distinct purposes (e.g. `CLIENT_IMAGE` + `OSCRIPT_IMAGE` in gitsync instead of dual `BASE_IMAGE`).
+- **Unused FROM-args must default to `scratch`**: BuildKit evaluates all `FROM` lines regardless of target stage. An empty/unset FROM arg causes `base name should not be blank`. When a `FROM ${X} AS stage` stage is only used by some Pants targets, default `X` to `scratch` so BuildKit skips it silently (e.g. `ARG CLIENT_IMAGE=scratch` for the `edt` target which doesn't use `client-src`).
+- **`COPY --from` can't expand ARGs**: reference variable image sources via a no-op stage: `FROM ${CLIENT_IMAGE} AS client-src`, then `COPY --from=client-src /...`. Avoids BuildKit ARG expansion limitations in COPY --from syntax.
 - **Pants 2.32 FROM-arg bug (pantsbuild/pants#23425), FIXED in 2.33.0a0**: on Pants < 2.33, a Containerfile must not mix target-address FROM-args (`ARG INSTALLER_IMAGE=installer:onec-installer`) with plain registry-ref FROM-args (`ARG BASE_IMAGE=ubuntu:26.04`). Fixed upstream, merged into `main` 2026-07-07, first released in **2.33.0a0**. With the bump to 2.33.0a0, mixed FROM-args are safe again. Track: bump to 2.33.0 stable when released.
-- **build-image action `file_secrets`**: optional `file_secrets` input (newline-separated `id=path`) emits `--secret=id=<id>,src=<path>` for buildah builds. Used by phase-3 agent chains that need to pass `secrets.env` as a file secret.
+- **build-image action `file_secrets`**: optional `file_secrets` input (newline-separated `id=path`) emits `--secret=id=<id>,src=<path>` for buildah builds. Used by phase-3 agent chains that need to pass `secrets.env` as a file secret. Write temp file with `umask 177`, use `if: always()` cleanup step.
+- **`packages.txt` data files**: instead of inline apt package lists, put packages in `packages.txt` and consume via `xargs apt-get install < dir/packages.txt`. One package per line. Avoids duplicated inline lists across Containerfiles; files can be shared cross-directory (e.g. `edt/Containerfile` reads `client/packages.txt` via repo-root context).
 
 ## Git Tag-Based CI
 
@@ -218,8 +219,7 @@ Follow existing pattern for Make targets:
 - Tag format: `packages/<component>/v<version>[-r<N>]`
 - `resolve-tag` action: plain tags (`v8.5.1.1343`) auto-increment to immutable `-rN` tags. Tags already with `-rN` pass through unchanged.
 - Resolved `-rN` tag is pushed and plain tag deleted from origin in one atomic push (`git push origin refs/tags/A :refs/tags/B`). Race conditions cause build failure.
-- Compound tags with dependency suffixes: `packages/edt-toolbox/v2025.2.6-client8.5.1.1343` -> `version_main` + `version_deps=["client8.5.1.1343"]`.
-- `edt-toolbox` builds two images from one tag: `edt-toolbox:VER-base-rN` (EDT only) then `edt-toolbox:VER-clientONECVER-rN` using `client-toolbox/Containerfile`.
+- Compound tags with dependency suffixes example (исторический): `packages/edt-toolbox/v2025.2.6-client8.5.1.1343` -> `version_main` + `version_deps=["client8.5.1.1343"]`.
 - After local push, plain tags remain in local clone; clean with `git fetch --prune --tags origin`.
 - `fetch-depth: 0` required for tag-triggered builds, `fetch-depth: 1` for PR.
 - PR guard variables: `vars.BUILD_SERVER != 'false'`, etc. If not set at all, build runs.
@@ -238,6 +238,7 @@ Follow existing pattern for Make targets:
 
 - Use Russian for 1C-specific terminology
 - Include English translations for common international concepts
+- When rewriting source files, preserve existing section comments unless the commented code block no longer exists. Update wording when necessary.
 - Document version compatibility and requirements
 
 ### README.md and AGENTS.md Updates

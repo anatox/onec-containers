@@ -1,0 +1,4 @@
+curl
+libgtk-3-0t64
+locales
+libxtst6

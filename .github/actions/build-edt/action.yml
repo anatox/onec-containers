@@ -4,7 +4,7 @@ description: Builds EDT image (onec-installer → edt)
 inputs:
   EDT_VERSION:
     required: true
-    description: EDT version (e.g. 2025.2.6)
+    description: EDT version (e.g. 2026.1.2)
   ONEC_USERNAME:
     required: true
     description: 1C portal username
@@ -20,7 +20,7 @@ outputs:
     description: EDT image name (e.g. 'edt')
   image-with-tag:
     value: ${{ steps.build-edt.outputs.image-with-tag }}
-    description: EDT image name with tag (e.g. 'edt:2025.2.6')
+    description: EDT image name with tag (e.g. 'edt:2026.1.2')
 
 runs:
   using: composite
@@ -29,6 +29,15 @@ runs:
       uses: ./.github/actions/build-installer
       with:
         is_default_branch: ${{ inputs.is_default_branch }}
+
+    - name: Write secrets.env
+      shell: bash
+      run: |
+        umask 177
+        cat > "${{ runner.temp }}/secrets.env" <<'ENV'
+        ONEC_USERNAME=${{ inputs.ONEC_USERNAME }}
+        ONEC_PASSWORD=${{ inputs.ONEC_PASSWORD }}
+        ENV
 
     - name: Build image (edt)
       id: build-edt
@@ -41,7 +50,11 @@ runs:
         build_args: |
           EDT_VERSION=${{ inputs.EDT_VERSION }}
           INSTALLER_IMAGE=${{ steps.build-installer.outputs.image-with-tag }}
-        secrets: |
-          onec_username=${{ inputs.ONEC_USERNAME }}
-          onec_password=${{ inputs.ONEC_PASSWORD }}
+        file_secrets: |
+          secrets_env=${{ runner.temp }}/secrets.env
         is_default_branch: ${{ inputs.is_default_branch }}
+
+    - name: Cleanup secrets.env
+      if: always()
+      shell: bash
+      run: rm -f "${{ runner.temp }}/secrets.env"
