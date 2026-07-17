@@ -11,8 +11,8 @@ docker_image(
         f"gitsync_ver={GITSYNC_VERSION}",
     ],
     image_tags=[GITSYNC_VERSION]
-        + ([f"{GITSYNC_VERSION}-g{GIT_SHA_SHORT}"] if GIT_SHA_SHORT else ["local"])
-        + (["latest"] if PUBLISH_LATEST == "true" else []),
+        + ([f"{GITSYNC_VERSION}-g{git_sha_short()}"] if git_sha_short() else ["local"])
+        + (["latest"] if docker_publish_latest() == "true" else []),
     image_labels=std_labels("GitSync"),
-    **cache_args(CACHE_PREFIX, "gitsync"),
+    **cache_args(docker_cache_prefix(), "gitsync"),
 )

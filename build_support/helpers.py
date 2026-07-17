@@ -1,7 +1,20 @@
-GIT_SHA = env("GIT_SHA", "")
-GIT_SHA_SHORT = GIT_SHA[:7] if GIT_SHA else ""
-PUBLISH_LATEST = env("PUBLISH_LATEST", "false")
-CACHE_PREFIX = env("PANTS_DOCKER_CACHE_PREFIX", "")
+# pyright: reportUndefinedVariable=false
+
+def git_sha():
+    return env("GIT_SHA", "")
+
+def git_sha_short():
+    sha = git_sha()
+    return sha[:7] if sha else ""
+
+def docker_publish_latest():
+    return env("PUBLISH_LATEST", "false")
+
+def docker_cache_prefix():
+    return env("PANTS_DOCKER_CACHE_PREFIX", "")
+
+def onec_nls_enabled():
+    return env("ONEC_NLS_ENABLED", "false")
 
 
 def _git_remote_url() -> str:

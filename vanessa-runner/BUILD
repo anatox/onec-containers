@@ -8,8 +8,8 @@ docker_image(
     dependencies=["//oscript:oscript"],
     extra_build_args=[f"runner_ver={VANESSA_RUNNER_VERSION}"],
     image_tags=[VANESSA_RUNNER_VERSION]
-        + ([f"{VANESSA_RUNNER_VERSION}-g{GIT_SHA_SHORT}"] if GIT_SHA_SHORT else ["local"])
-        + (["latest"] if PUBLISH_LATEST == "true" else []),
+        + ([f"{VANESSA_RUNNER_VERSION}-g{git_sha_short()}"] if git_sha_short() else ["local"])
+        + (["latest"] if docker_publish_latest() == "true" else []),
     image_labels=std_labels("Vanessa Runner"),
-    **cache_args(CACHE_PREFIX, "vanessa-runner"),
+    **cache_args(docker_cache_prefix(), "vanessa-runner"),
 )

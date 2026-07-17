@@ -11,8 +11,8 @@ for platform_version in PLATFORM_VERSIONS:
         dependencies=[":context", f"//crs:onec-crs-{platform_version}"],
         extra_build_args=[f"BASE_IMAGE=crs:onec-crs-{platform_version}"],
         image_tags=[platform_version]
-            + ([f"{platform_version}-g{GIT_SHA_SHORT}"] if GIT_SHA_SHORT else ["local"])
-            + (["latest"] if PUBLISH_LATEST == "true" and platform_version == max(PLATFORM_VERSIONS) else []),
+            + ([f"{platform_version}-g{git_sha_short()}"] if git_sha_short() else ["local"])
+            + (["latest"] if docker_publish_latest() == "true" and platform_version == max(PLATFORM_VERSIONS) else []),
         image_labels=std_labels("1C:Enterprise CRS with Apache"),
-        **cache_args(CACHE_PREFIX, "onec-crs-apache"),
+        **cache_args(docker_cache_prefix(), "onec-crs-apache"),
     )

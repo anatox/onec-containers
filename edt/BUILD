@@ -14,10 +14,10 @@ for edt_version in EDT_VERSIONS:
         dependencies=[":context", ":runtime-deps", "//distr:distr", "//scripts:installer", "//installer:onec-installer"],
         extra_build_args=[f"EDT_VERSION={edt_version}"],
         secrets={"secrets_env": "secrets.env"},
-        image_tags=[edt_version] + ([f"{edt_version}-g{GIT_SHA_SHORT}"] if GIT_SHA_SHORT else ["local"])
-            + (["latest"] if PUBLISH_LATEST == "true" and edt_version == max(EDT_VERSIONS) else []),
+        image_tags=[edt_version] + ([f"{edt_version}-g{git_sha_short()}"] if git_sha_short() else ["local"])
+            + (["latest"] if docker_publish_latest() == "true" and edt_version == max(EDT_VERSIONS) else []),
         image_labels=std_labels("1C:EDT"),
-        **cache_args(CACHE_PREFIX, "edt"),
+        **cache_args(docker_cache_prefix(), "edt"),
     )
     for platform_version in PLATFORM_VERSIONS:
         docker_image(
@@ -36,9 +36,9 @@ for edt_version in EDT_VERSIONS:
             ],
             secrets={"secrets_env": "secrets.env"},
             image_tags=[f"{edt_version}-client{platform_version}"]
-                + ([f"{edt_version}-client{platform_version}-g{GIT_SHA_SHORT}"] if GIT_SHA_SHORT else ["local"])
-                + (["latest"] if PUBLISH_LATEST == "true" and edt_version == max(EDT_VERSIONS)
+                + ([f"{edt_version}-client{platform_version}-g{git_sha_short()}"] if git_sha_short() else ["local"])
+                + (["latest"] if docker_publish_latest() == "true" and edt_version == max(EDT_VERSIONS)
                    and platform_version == max(PLATFORM_VERSIONS) else []),
             image_labels=std_labels("1C:EDT + client toolbox for distrobox/toolbx"),
-            **cache_args(CACHE_PREFIX, "edt-toolbox"),
+            **cache_args(docker_cache_prefix(), "edt-toolbox"),
         )
