@@ -70,7 +70,7 @@ runs:
             echo "::warning::pants peek failed for $t, falling back to directory name"
           fi
         done
-        matrix_json="$(echo "$matrix_json" | jq --argjson repos "$repo_map" '[.[] | . + {repo: ($repos[.target] // (split(":")[0] | split("/")[-1]))}]')"
+        matrix_json="$(echo "$matrix_json" | jq --argjson repos "$repo_map" '[.[] | . + {repo: ($repos[.target] // (.target | split(":")[0] | split("/")[-1]))}]')"
 
         echo "=== Build matrix ==="
         echo "$matrix_json" | jq -r '.[] | "\(.target) -> \(.name)"'
