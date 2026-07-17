@@ -121,7 +121,7 @@ pants package server:onec-server-8.5.1.1343
 Версии меняются в файлах из `versions/`. Например, чтобы добавить новую версию платформы в `versions/platform.py`:
 
 ```python
-PLATFORM_VERSIONS = ["8.5.1.1343", "8.5.2.2000"]
+PLATFORM_VERSIONS = ["8.3.27.1936", "8.5.1.1343"]
 ```
 
 После изменения `pants package server:` соберёт образы для обеих версий.
