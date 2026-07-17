@@ -26,7 +26,7 @@ runs:
       env:
         PANTS_CONFIG_FILES: pants.ci.toml
       run: |
-        set -euo pipefail
+        set -euxo pipefail
 
         case "${{ inputs.source }}" in
           workflow_dispatch)
@@ -58,13 +58,17 @@ runs:
           filter_expr='select(test("^(oscript:|installer:)") | not)'
         fi
 
-        matrix_json="$(echo "$targets_json" | jq -c '[.[] | '"${filter_expr}"' | {target: ., name: ((split(":")[0] | split("/")[-1]) + ((split(":")[1] | capture("-(?<ver>[0-9][0-9.]*)$")? | " " + .ver) // ""))}]')"
+        matrix_json="$(echo "$targets_json" | jq -c '[.[] | '"${filter_expr}"' | select(type == "string" and (. | contains(":"))) | {target: ., name: ((split(":")[0] | split("/")[-1]) + ((split(":")[1] | capture("-(?<ver>[0-9][0-9.]*)$")? | " " + .ver) // ""))}]')"
 
         mapfile -t target_arr < <(echo "$matrix_json" | jq -r '.[].target')
         repo_map="{}"
         for t in "${target_arr[@]}"; do
           repo="$(pants peek "$t" 2>/dev/null | jq -r '.[0].repository // empty')"
-          [ -n "$repo" ] && repo_map="$(echo "$repo_map" | jq --arg t "$t" --arg r "$repo" '.[$t] = $r')"
+          if [ -n "$repo" ]; then
+            repo_map="$(echo "$repo_map" | jq --arg t "$t" --arg r "$repo" '.[$t] = $r')"
+          else
+            echo "::warning::pants peek failed for $t, falling back to directory name"
+          fi
         done
         matrix_json="$(echo "$matrix_json" | jq --argjson repos "$repo_map" '[.[] | . + {repo: ($repos[.target] // (split(":")[0] | split("/")[-1]))}]')"
 
