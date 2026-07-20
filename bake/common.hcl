@@ -14,7 +14,7 @@ function "shortver" {
 function "tags" {
   params = [image, version]
   result = flatten([
-    ["localhost/${image}:local", "localhost/${image}:${version}", "localhost/${image}:${shortver(version)}"],
+    REGISTRY_PREFIX == "" ? ["localhost/${image}:local", "localhost/${image}:${version}", "localhost/${image}:${shortver(version)}"] : [],
     REGISTRY_PREFIX != "" ? ["${REGISTRY_PREFIX}/${image}:${version}", "${REGISTRY_PREFIX}/${image}:${shortver(version)}"] : [],
     REGISTRY_PREFIX != "" && GIT_SHA != "" ? ["${REGISTRY_PREFIX}/${image}:${version}-g${substr(GIT_SHA, 0, 7)}"] : [],
     REGISTRY_PREFIX != "" && PUBLISH_LATEST == "true" ? ["${REGISTRY_PREFIX}/${image}:latest"] : [],
@@ -43,7 +43,7 @@ function "labels" {
 function "agent_tags" {
   params = [image, version, platform]
   result = flatten([
-    ["localhost/${image}:local-${platform}", "localhost/${image}:${version}-${platform}", "localhost/${image}:${shortver(version)}-${platform}"],
+    REGISTRY_PREFIX == "" ? ["localhost/${image}:local-${platform}", "localhost/${image}:${version}-${platform}", "localhost/${image}:${shortver(version)}-${platform}"] : [],
     REGISTRY_PREFIX != "" ? ["${REGISTRY_PREFIX}/${image}:${version}-${platform}", "${REGISTRY_PREFIX}/${image}:${shortver(version)}-${platform}"] : [],
     REGISTRY_PREFIX != "" && GIT_SHA != "" ? ["${REGISTRY_PREFIX}/${image}:${version}-g${substr(GIT_SHA, 0, 7)}-${platform}"] : [],
     REGISTRY_PREFIX != "" && PUBLISH_LATEST == "true" ? ["${REGISTRY_PREFIX}/${image}:${platform}"] : [],
