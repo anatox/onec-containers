@@ -1,0 +1,31 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "forkProcessing": "enabled",
+  "extends": [
+    "config:recommended",
+    ":enablePreCommit"
+  ],
+  "packageRules": [
+    {
+      "matchManagers": ["dockerfile", "docker-compose"],
+      "matchDepNames": ["localhost/*"],
+      "enabled": false
+    },
+    {
+      "matchDatasources": ["github-releases"],
+      "extractVersion": "^v?\\.?(?<version>.*)$"
+    }
+  ],
+  "commitMessagePrefix": "build(deps):",
+  "commitMessageAction": "update",
+  "customManagers": [
+    {
+      "customType": "regex",
+      "fileMatch": ["^bake/versions\\.hcl$"],
+      "matchStringsStrategy": "any",
+      "matchStrings": [
+        "#\\s*renovate:\\s*datasource=(?<datasource>\\S+)\\s+depName=(?<depName>\\S+)(?:\\s+packageName=(?<packageName>\\S+))?(?:\\s+versioning=(?<versioning>\\S+))?[^\\n]*\\n\\s*variable\\s+\"[^\"]+\"\\s*\\{[^}]*?default\\s*=\\s*\"(?<currentValue>[^\"]+)\""
+      ]
+    }
+  ]
+}
