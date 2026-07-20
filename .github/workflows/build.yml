@@ -147,7 +147,7 @@ jobs:
           PUBLISH_LATEST: ${{ github.ref_name == 'main' && 'true' || 'false' }}
           ONEC_USERNAME: ${{ secrets.ONEC_USERNAME }}
           ONEC_PASSWORD: ${{ secrets.ONEC_PASSWORD }}
-          DEV1C_EXECUTOR_API_KEY: ${{ secrets.DEV1C_EXECUTOR_API_KEY }}
+          ELEMENTSCRIPT_DOWNLOAD_TOKEN: ${{ secrets.ELEMENTSCRIPT_DOWNLOAD_TOKEN }}
           DEBUG_TRACE: ${{ runner.debug == '1' && '1' || '0' }}
         run: |
           PUSH_FLAG=""

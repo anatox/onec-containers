@@ -6,12 +6,13 @@ LABEL org.opencontainers.image.authors="Iosif Pravets <i@pravets.ru>, \
     Anatolii Sereda <3011745+anatox@users.noreply.github.com>"
 
 SHELL ["/bin/bash", "-euo", "pipefail", "-c"]
-ARG EXECUTOR_VERSION
+ARG ELEMENTSCRIPT_VERSION
 
 WORKDIR /tmp
 
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt/lists,sharing=locked <<'EOF'
+  [ "${DEBUG_TRACE:-0}" = "1" ] && set -x
   find /var/lib/apt/lists -name lock -delete 2>/dev/null || true
   apt-get update -qq
   DEBIAN_FRONTEND=noninteractive apt-get install -y -o=Dpkg::Use-Pty=0 --no-install-recommends \
@@ -24,19 +25,19 @@ EOF
 
 ENV LANG=ru_RU.UTF-8
 
-RUN --mount=type=secret,id=dev1c_executor_api_key <<'EOF'
+RUN --mount=type=secret,id=elementscript_download_token <<'EOF'
   [ "${DEBUG_TRACE:-0}" = "1" ] && set -x
   curl -sSL --fail \
-    -H "X-Developer-1c-Api:$(cat /run/secrets/dev1c_executor_api_key)" \
-    -o executor.zip \
-    https://developer.1c.ru/applications/Console/api/v1/download/executor/${EXECUTOR_VERSION}/linux
-  unzip executor.zip
-  rm executor.zip
-  mkdir -p /opt/1C/executor
-  cp -R ./* /opt/1C/executor
+    -H "X-Developer-1c-Api:$(cat /run/secrets/elementscript_download_token)" \
+    -o script.zip \
+    https://developer.1c.ru/applications/Console/api/v1/download/elementscript/${ELEMENTSCRIPT_VERSION}/linux
+  unzip script.zip
+  rm script.zip
+  mkdir -p /opt/1C/script
+  cp -R ./* /opt/1C/script
   rm -rf /tmp/*
   apt-get purge -y unzip
 EOF
 
-ENV PATH="/opt/1C/executor:$PATH"
-ENTRYPOINT ["/opt/1C/executor/executor"]
+ENV PATH="/opt/1C/script:$PATH"
+ENTRYPOINT ["/opt/1C/script/executor"]
