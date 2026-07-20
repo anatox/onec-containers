@@ -1,6 +1,6 @@
 variable "ONEC_VERSION" { default = "8.5.1.1343" }
 variable "EDT_VERSION" { default = "2026.1.2" }
-variable "YARD_VERSION" { default = "1.12.0" }
+variable "YARD_VERSION" { default = "1.13.0" }
 variable "ONESCRIPT_VERSION" { default = "2.1.0" }
 variable "OVM_VERSION" { default = "1.6.2" }
 variable "ELEMENTSCRIPT_VERSION" { default = "3.0.2.2" }
