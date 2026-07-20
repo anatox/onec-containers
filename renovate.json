@@ -1,0 +1,118 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "forkProcessing": "enabled",
+  "extends": [
+    "config:recommended",
+    ":enablePreCommit"
+  ],
+  "packageRules": [
+    {
+      "matchManagers": ["dockerfile", "docker-compose"],
+      "matchDepNames": ["localhost/*"],
+      "enabled": false
+    }
+  ],
+  "commitMessagePrefix": "build(deps):",
+  "commitMessageAction": "update",
+  "customManagers": [
+    {
+      "depNameTemplate": "oscript-library/ovm",
+      "customType": "regex",
+      "fileMatch": ["^bake/versions\\.hcl$"],
+      "matchStrings": [
+        "variable\\s+\"OVM_VERSION\"\\s*\\{[^}]*default\\s*=\\s*\"(?<currentValue>[^\"]+)\""
+      ],
+      "datasourceTemplate": "github-releases",
+      "extractVersionTemplate": "^v(?<version>.*)$"
+    },
+    {
+      "depNameTemplate": "EvilBeaver/OneScript",
+      "customType": "regex",
+      "fileMatch": ["^bake/versions\\.hcl$"],
+      "matchStrings": [
+        "variable\\s+\"ONESCRIPT_VERSION\"\\s*\\{[^}]*default\\s*=\\s*\"(?<currentValue>[^\"]+)\""
+      ],
+      "datasourceTemplate": "github-releases",
+      "extractVersionTemplate": "^v(?<version>.*)$"
+    },
+    {
+      "depNameTemplate": "arkuznetsov/yard",
+      "customType": "regex",
+      "fileMatch": ["^bake/versions\\.hcl$"],
+      "matchStrings": [
+        "variable\\s+\"YARD_VERSION\"\\s*\\{[^}]*default\\s*=\\s*\"(?<currentValue>[^\"]+)\""
+      ],
+      "datasourceTemplate": "github-releases",
+      "extractVersionTemplate": "^v\\.?(?<version>.*)$"
+    },
+    {
+      "depNameTemplate": "1c-syntax/Coverage41C",
+      "customType": "regex",
+      "fileMatch": ["^bake/versions\\.hcl$"],
+      "matchStrings": [
+        "variable\\s+\"COVERAGE41C_VERSION\"\\s*\\{[^}]*default\\s*=\\s*\"(?<currentValue>[^\"]+)\""
+      ],
+      "datasourceTemplate": "github-releases",
+      "extractVersionTemplate": "^v(?<version>.*)$"
+    },
+    {
+      "depNameTemplate": "oscript-library/gitsync",
+      "customType": "regex",
+      "fileMatch": ["^bake/versions\\.hcl$"],
+      "matchStrings": [
+        "variable\\s+\"GITSYNC_VERSION\"\\s*\\{[^}]*default\\s*=\\s*\"(?<currentValue>[^\"]+)\""
+      ],
+      "datasourceTemplate": "github-releases",
+      "extractVersionTemplate": "^v(?<version>.*)$"
+    },
+    {
+      "depNameTemplate": "vanessa-opensource/vanessa-runner",
+      "customType": "regex",
+      "fileMatch": ["^bake/versions\\.hcl$"],
+      "matchStrings": [
+        "variable\\s+\"VANESSA_RUNNER_VERSION\"\\s*\\{[^}]*default\\s*=\\s*\"(?<currentValue>[^\"]+)\""
+      ],
+      "datasourceTemplate": "github-releases",
+      "extractVersionTemplate": "^v(?<version>.*)$"
+    },
+    {
+      "depNameTemplate": "just-containers/s6-overlay",
+      "customType": "regex",
+      "fileMatch": ["^bake/versions\\.hcl$"],
+      "matchStrings": [
+        "variable\\s+\"S6_OVERLAY_VERSION\"\\s*\\{[^}]*default\\s*=\\s*\"(?<currentValue>[^\"]+)\""
+      ],
+      "datasourceTemplate": "github-releases",
+      "extractVersionTemplate": "^v(?<version>.*)$"
+    },
+    {
+      "depNameTemplate": "jenkinsci/remoting",
+      "customType": "regex",
+      "fileMatch": ["^bake/versions\\.hcl$"],
+      "matchStrings": [
+        "variable\\s+\"JENKINS_REMOTING_VERSION\"\\s*\\{[^}]*default\\s*=\\s*\"(?<currentValue>[^\"]+)\""
+      ],
+      "datasourceTemplate": "maven",
+      "packageNameTemplate": "org.jenkins-ci.main:remoting"
+    },
+    {
+      "depNameTemplate": "Adoptium OpenJDK",
+      "customType": "regex",
+      "fileMatch": ["^bake/versions\\.hcl$"],
+      "matchStrings": [
+        "variable\\s+\"OPENJDK_VERSION\"\\s*\\{[^}]*default\\s*=\\s*\"(?<currentValue>[^\"]+)\""
+      ],
+      "datasourceTemplate": "java-version"
+    },
+    {
+      "depNameTemplate": "tianon/gosu",
+      "customType": "regex",
+      "fileMatch": ["^bake/versions\\.hcl$"],
+      "matchStrings": [
+        "variable\\s+\"GOSU_VERSION\"\\s*\\{[^}]*default\\s*=\\s*\"(?<currentValue>[^\"]+)\""
+      ],
+      "datasourceTemplate": "github-releases",
+      "extractVersionTemplate": "^(?<version>.*)$"
+    }
+  ]
+}
