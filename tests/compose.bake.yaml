@@ -1,0 +1,12 @@
+services:
+  registry:
+    image: registry:2
+    ports:
+      - "5000:5000"
+    environment:
+      REGISTRY_DELETE_ENABLED: "true"
+    volumes:
+      - bake_registry:/var/lib/registry
+
+volumes:
+  bake_registry: {}

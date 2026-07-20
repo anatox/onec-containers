@@ -1,0 +1,33 @@
+{
+  "name": "onec-containers",
+  "dockerComposeFile": ["compose.yaml", "local.compose.yaml"],
+  "service": "dev",
+  "workspaceFolder": "/workspaces/onec-containers",
+  "remoteUser": "vscode",
+  "features": {
+    "ghcr.io/devcontainers/features/python:1": {
+      "version": "3.14"
+    },
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {
+      "moby": false
+    },
+    "ghcr.io/dhoeric/features/hadolint:1": {},
+    "ghcr.io/ChristopherMacGown/devcontainer-features/direnv:1": {},
+    "ghcr.io/devcontainers-extra/features/shellcheck:1": {}
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "ms-azuretools.vscode-docker",
+        "exiasr.hadolint",
+        "hashicorp.hcl",
+        "redhat.vscode-yaml",
+        "timonwong.shellcheck"
+      ]
+    }
+  },
+  "initializeCommand": ".devcontainer/initialize.sh",
+  "postCreateCommand": ".devcontainer/postCreate.sh",
+  "shutdownAction": "stopCompose"
+}

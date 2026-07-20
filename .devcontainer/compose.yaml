@@ -1,0 +1,11 @@
+services:
+  dev:
+    image: mcr.microsoft.com/devcontainers/base:ubuntu
+    volumes:
+      - ..:/workspaces/onec-containers:cached
+    command: sleep infinity
+    cap_add:
+      - SYS_PTRACE
+    hostname: onec-dev
+    security_opt:
+      - seccomp:unconfined

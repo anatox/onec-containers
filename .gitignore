@@ -1,15 +1,29 @@
-.vagrant
-
-.env
-.onec.env
-.envrc
-env.bat
-build_info.txt
 .DS_Store
-dive.log
+desktop.ini
 
 # Configuration file for HASP LM
 nethasp.ini
 
-distr/
+# Local installation files
+distr/**
+!distr/.gitkeep
+!distr/BUILD
 lic/**.lic
+
+# Local environment files
+*.env
+*.envrc
+
+# Local private keys
+cosign.key
+
+# Local cache
+.cache
+__pycache__
+
+# Bake plan artifacts
+bake-plan.json
+bake-metadata.json
+
+# Devcontainer overrides
+.devcontainer/local.compose.yaml
