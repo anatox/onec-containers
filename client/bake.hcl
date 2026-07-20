@@ -16,6 +16,26 @@ target "client" {
   cache_to = cache_to("onec-client")
 }
 
+target "client-toolbox" {
+  target = "toolbox"
+  dockerfile = "client/Dockerfile"
+  context = "."
+  contexts = {
+    "localhost/onec-installer:local" = "target:installer"
+  }
+  args = {
+    BASE_IMAGE = "quay.io/toolbx/ubuntu-toolbox:26.04"
+    ONEC_VERSION = "${ONEC_VERSION}"
+    NLS_ENABLED = "${NLS_ENABLED}"
+  }
+  secret = ["id=onec_username,env=ONEC_USERNAME", "id=onec_password,env=ONEC_PASSWORD"]
+  tags = tags("client-toolbox", ONEC_VERSION)
+  labels = labels("client-toolbox", "1C:Enterprise client toolbox ${ONEC_VERSION}")
+  description = jsonencode({"extra-srcs" = ["scripts/distrobox-shims.sh", "client/configs"]})
+  cache_from = cache_from("client-toolbox")
+  cache_to = cache_to("client-toolbox")
+}
+
 target "client-s6" {
   dockerfile = "s6-overlay/Dockerfile"
   context = "."
