@@ -39,10 +39,6 @@
 $ cp .onec.env.example .onec.env
 ```
 
-```batch
-:: для Windows
-copy .onec.env.bat.example env.bat
-```
 
 Скорректируйте файл `.onec.env` в соответствии со своим окружением:
 
@@ -65,10 +61,6 @@ copy .onec.env.bat.example env.bat
 $ source .onec.env
 ```
 
-```batch
-:: для Windows
-env.bat
-```
 
 ## Как сбилдить образы
 
