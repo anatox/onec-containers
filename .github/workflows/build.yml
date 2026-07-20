@@ -148,6 +148,7 @@ jobs:
           ONEC_USERNAME: ${{ secrets.ONEC_USERNAME }}
           ONEC_PASSWORD: ${{ secrets.ONEC_PASSWORD }}
           DEV1C_EXECUTOR_API_KEY: ${{ secrets.DEV1C_EXECUTOR_API_KEY }}
+          DEBUG_TRACE: ${{ runner.debug == '1' && '1' || '0' }}
         run: |
           PUSH_FLAG=""
           if [ "${{ github.event_name }}" = "push" ] || [ "${{ inputs.publish }}" = "true" ]; then
