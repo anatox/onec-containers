@@ -1,20 +1,22 @@
-ARG DOCKER_REGISTRY_URL
 ARG BASE_IMAGE
-ARG BASE_TAG
 
 # BASE_IMAGE must contain s6-overlay
-FROM ${DOCKER_REGISTRY_URL}${DOCKER_REGISTRY_URL:+/}${BASE_IMAGE}:${BASE_TAG}
+FROM ${BASE_IMAGE}
 
-LABEL maintainer="Dima Ovcharenko <d.ovcharenko90@gmail.com>, Korus Consulting LLC"
+LABEL org.opencontainers.image.authors="Dima Ovcharenko <d.ovcharenko90@gmail.com>, Korus Consulting LLC, \
+    Anatolii Sereda <3011745+anatox@users.noreply.github.com>"
 
 USER root
 
-# FIX: remove old libstdc++ shipped with 1C (causes GLIBCXX errors)
-RUN find /opt/1cv8 -name "libstdc++.so*" -delete
+# FIX: remove old libstdc++ and libgcc_s shipped with 1C (causes GLIBCXX/GCC version errors)
+RUN find /opt/1cv8 \( -name "libgcc_s.so*" -o -name "libstdc++.so*" \) -delete
 
-RUN apt-get update \
-  && apt-mark hold iptables \
-  && env DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt/lists,sharing=locked <<'EOF'
+  set -eux
+  apt-get update -qq
+  apt-mark hold iptables
+  env DEBIAN_FRONTEND=noninteractive apt-get install -y -o=Dpkg::Use-Pty=0 --no-install-recommends \
     # X11 и VNC
     dbus-x11 \
     x11-xserver-utils \
@@ -30,15 +32,11 @@ RUN apt-get update \
     # Utilities
     psmisc \
     xdg-utils \
-    iproute2 \
+    iproute2
   # Fix xfce theme
-  && sed -i 's%<property name="ThemeName" type="string" value="Xfce"/>%<property name="ThemeName" type="string" value="Raleigh"/>%' \
-    /etc/xdg/xfce4/xfconf/xfce-perchannel-xml/xsettings.xml \
-  && rm -rf \
-    /var/lib/apt/lists/* \
-    /var/cache/debconf \
-    /tmp/* \
-    /var/tmp/*
+  sed -i 's%<property name="ThemeName" type="string" value="Xfce"/>%<property name="ThemeName" type="string" value="Raleigh"/>%' \
+    /etc/xdg/xfce4/xfconf/xfce-perchannel-xml/xsettings.xml
+EOF
 
 # Disable accessibility
 ENV NO_AT_BRIDGE=1
