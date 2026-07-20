@@ -16,6 +16,44 @@ target "edt" {
   cache_to = cache_to("edt")
 }
 
+target "edt-toolbox" {
+  target = "toolbox"
+  dockerfile = "edt/Dockerfile"
+  context = "."
+  contexts = {
+    "localhost/onec-installer:local" = "target:installer"
+  }
+  args = {
+    EDT_VERSION = "${EDT_VERSION}"
+  }
+  secret = ["id=onec_username,env=ONEC_USERNAME", "id=onec_password,env=ONEC_PASSWORD"]
+  tags = tags("edt-toolbox", EDT_VERSION)
+  labels = labels("edt-toolbox", EDT_VERSION, "1C:Enterprise Development Tools toolbox")
+  description = jsonencode({"extra-srcs" = ["scripts/install-edt-jdk.sh", "scripts/install-edt-nginx.sh", "scripts/distrobox-shims.sh"]})
+  cache_from = cache_from("edt-toolbox")
+  cache_to = cache_to("edt-toolbox")
+}
+
+target "edt-toolbox-client" {
+  dockerfile = "client/Dockerfile"
+  target = "base"
+  context = "."
+  contexts = {
+    "localhost/onec-installer:local" = "target:installer"
+    "localhost/edt-toolbox:${EDT_VERSION}" = "target:edt-toolbox"
+  }
+  args = {
+    BASE_IMAGE = "localhost/edt-toolbox:${EDT_VERSION}"
+    ONEC_VERSION = "${ONEC_VERSION}"
+    NLS_ENABLED = "${NLS_ENABLED}"
+  }
+  secret = ["id=onec_username,env=ONEC_USERNAME", "id=onec_password,env=ONEC_PASSWORD"]
+  tags = tags("edt-toolbox", "${EDT_VERSION}-client${ONEC_VERSION}")
+  labels = labels("edt-toolbox", "${EDT_VERSION}-client${ONEC_VERSION}", "1C:Enterprise Development Tools + client")
+  cache_from = cache_from("edt-toolbox")
+  cache_to = cache_to("edt-toolbox")
+}
+
 target "edt-s6" {
   dockerfile = "s6-overlay/Dockerfile"
   context = "."
