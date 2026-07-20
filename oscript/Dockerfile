@@ -1,4 +1,3 @@
-LABEL org.opencontainers.image.authors="Anatolii Sereda <3011745+anatox@users.noreply.github.com>"
 ARG BASE_IMAGE=ubuntu:26.04
 
 FROM debian:13-slim AS oscript-installer
@@ -38,6 +37,8 @@ RUN <<'EOF'
 EOF
 
 FROM ${BASE_IMAGE}
+
+LABEL org.opencontainers.image.authors="Anatolii Sereda <3011745+anatox@users.noreply.github.com>"
 
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt/lists,sharing=locked <<'EOF'
