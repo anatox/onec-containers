@@ -2,8 +2,8 @@ ARG BASE_IMAGE=ubuntu:26.04
 
 FROM ${BASE_IMAGE}
 
-LABEL org.opencontainers.image.authors="Anatolii Sereda <3011745+anatox@users.noreply.github.com>"
-LABEL author="Iosif Pravets"
+LABEL org.opencontainers.image.authors="Iosif Pravets <i@pravets.ru>, \
+    Anatolii Sereda <3011745+anatox@users.noreply.github.com>"
 
 ARG EXECUTOR_VERSION
 
