@@ -1,0 +1,63 @@
+#!/usr/bin/env bash
+set -euo pipefail && [ "${DEBUG_TRACE:-0}" = "1" ] && set -x
+
+# Аргументы скрипта
+distr_root="/var/cache/yard"
+nls=false
+installer_type=""
+version=""
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --path)
+            distr_root="$2"
+            shift 2
+            ;;
+        --nls)
+            nls=true
+            shift
+            ;;
+        --nls=*)
+            nls="${1#*=}"
+            shift
+            ;;
+        *)
+            if [ -z "$installer_type" ]; then
+                installer_type="$1"
+            elif [ -z "$version" ]; then
+                version="$1"
+            fi
+            shift
+            ;;
+    esac
+done
+
+if [ -z "$distr_root" ]; then
+    echo "ОШИБКА: Не указан --path (корневой каталог для скачивания)"
+    exit 1
+fi
+if [ -z "${ONEC_USERNAME:-}" ] || [ -z "${ONEC_PASSWORD:-}" ]; then
+    echo "ОШИБКА: Не заданы переменные окружения ONEC_USERNAME и ONEC_PASSWORD"
+    exit 1
+fi
+
+if [ -z "$installer_type" ]; then
+    echo "ОШИБКА: Не указан тип установки (первый позиционный аргумент)"
+    exit 1
+fi
+if [ -z "$version" ]; then
+    echo "ОШИБКА: Не указана версия (второй позиционный аргумент)"
+    exit 1
+fi
+
+LIBS="$(cd "$(dirname "${BASH_SOURCE[0]}")/../libexec" && pwd)"
+
+"$LIBS/yard-download.sh" --path "$distr_root" "$installer_type" "$version"
+"$LIBS/install-packages.sh" --path "$distr_root" --nls="$nls" "$installer_type" "$version"
+"$LIBS/fix-menu-items.sh"
+
+if [ "$installer_type" = "edt" ]; then
+    "$LIBS/create-symlinks-edt.sh"
+else
+    "$LIBS/create-symlinks-1cv8.sh"
+fi

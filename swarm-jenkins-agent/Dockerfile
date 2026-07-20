@@ -1,29 +1,30 @@
-ARG DOCKER_REGISTRY_URL
 ARG BASE_IMAGE
-ARG BASE_TAG
 
-# BASE_IMAGE must contain s6-overlay
-FROM ${DOCKER_REGISTRY_URL:+"$DOCKER_REGISTRY_URL/"}${BASE_IMAGE}:${BASE_TAG}
+FROM ${BASE_IMAGE}
 
-LABEL maintainer="Nikita Gryzlov <NikGryzlov@1bit.com>, FirstBit"
+LABEL org.opencontainers.image.authors="Nikita Gryzlov <NikGryzlov@1bit.com>, FirstBit, \
+    Anatolii Sereda <3011745+anatox@users.noreply.github.com>"
 
-RUN set -xe \
-  && apt-get update \
-  && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-      curl \
-      git \
-      locales \
-      openssh-client \
-      wget \
-  && curl -s https://packagecloud.io/install/repositories/github/git-lfs/script.deb.sh | bash \
-  && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-    git-lfs \
-  && rm -rf  \
-    /var/lib/apt/lists/* \
-    /var/cache/debconf \
-  && localedef -i ru_RU -c -f UTF-8 -A /usr/share/locale/locale.alias ru_RU.UTF-8
+SHELL ["/bin/bash", "-euo", "pipefail", "-c"]
 
-ENV LANG ru_RU.UTF-8
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt/lists,sharing=locked <<'EOF'
+  [ "${DEBUG_TRACE:-0}" = "1" ] && set -x
+  find /var/lib/apt/lists -name lock -delete 2>/dev/null || true
+  apt-get update -qq
+  DEBIAN_FRONTEND=noninteractive apt-get install -y -o=Dpkg::Use-Pty=0 --no-install-recommends \
+    curl \
+    git \
+    locales \
+    openssh-client \
+    wget
+  curl -s https://packagecloud.io/install/repositories/github/git-lfs/script.deb.sh | bash
+  DEBIAN_FRONTEND=noninteractive apt-get install -y -o=Dpkg::Use-Pty=0 --no-install-recommends \
+    git-lfs
+  locale-gen ru_RU.UTF-8
+EOF
+
+ENV LANG=ru_RU.UTF-8
 
 # add services to s6-overlay
 COPY ./swarm-jenkins-agent/configs/rootfs-v3/ /

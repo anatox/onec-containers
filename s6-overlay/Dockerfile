@@ -1,24 +1,34 @@
-ARG DOCKER_REGISTRY_URL
-ARG BASE_IMAGE=debian
-ARG BASE_TAG=bookworm-slim
+ARG BASE_IMAGE
 
-FROM ${DOCKER_REGISTRY_URL:+"$DOCKER_REGISTRY_URL/"}${BASE_IMAGE}:${BASE_TAG}
+FROM ${BASE_IMAGE}
 
-LABEL maintainer="Dima Ovcharenko <d.ovcharenko90@gmail.com>, Korus Consulting LLC"
+LABEL org.opencontainers.image.authors="Dima Ovcharenko <d.ovcharenko90@gmail.com>, Korus Consulting LLC, \
+    Anatolii Sereda <3011745+anatox@users.noreply.github.com>"
 
+SHELL ["/bin/bash", "-euo", "pipefail", "-c"]
+
+# hadolint ignore=DL3002
 USER root
 
-RUN apt-get update \
-  && apt-mark hold iptables \
-  && env DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-    xz-utils
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt/lists,sharing=locked <<'EOF'
+  [ "${DEBUG_TRACE:-0}" = "1" ] && set -x
+  find /var/lib/apt/lists -name lock -delete 2>/dev/null || true
+  apt-get update -qq
+  apt-mark hold iptables
+  env DEBIAN_FRONTEND=noninteractive apt-get install -y -o=Dpkg::Use-Pty=0 --no-install-recommends \
+      xz-utils
+EOF
 
 # Install s6-overlay v3
-ARG S6_OVERLAY_VERSION=3.2.2.0
+ARG S6_OVERLAY_VERSION
 ADD https://github.com/just-containers/s6-overlay/releases/download/v${S6_OVERLAY_VERSION}/s6-overlay-noarch.tar.xz /tmp
 RUN tar -C / -Jxpf /tmp/s6-overlay-noarch.tar.xz
 ADD https://github.com/just-containers/s6-overlay/releases/download/v${S6_OVERLAY_VERSION}/s6-overlay-x86_64.tar.xz /tmp
-RUN tar -C / -Jxpf /tmp/s6-overlay-x86_64.tar.xz \
-  && rm -f /tmp/s6-overlay-*.tar.xz
+RUN <<'EOF'
+  [ "${DEBUG_TRACE:-0}" = "1" ] && set -x
+  tar -C / -Jxpf /tmp/s6-overlay-x86_64.tar.xz
+  rm -f /tmp/s6-overlay-*.tar.xz
+EOF
 
 ENTRYPOINT ["/init"]

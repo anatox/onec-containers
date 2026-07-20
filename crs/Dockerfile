@@ -1,85 +1,90 @@
-FROM alpine:latest AS downloader
+ARG BASE_IMAGE=ubuntu:26.04
+ARG INSTALLER_IMAGE=localhost/onec-installer:local
 
-ARG ONEC_USERNAME
-ARG ONEC_PASSWORD
+FROM ${INSTALLER_IMAGE} AS installer
+
+SHELL ["/bin/bash", "-euo", "pipefail", "-c"]
+
+ARG DEBUG_TRACE
 ARG ONEC_VERSION
-ENV installer_type=server32
-ENV downloads=downloads/platform83/${ONEC_VERSION}
+ARG GOSU_VERSION
+ARG NLS_ENABLED=false
 
-COPY ./scripts/download_og.sh /download_og.sh
+# Копирование локальных дистрибутивов
+COPY ./distr /distr
 
-WORKDIR /tmp
-COPY ./distr ./${downloads}
-RUN rm ./${downloads}/.gitkeep \
-  && rm -rf ${downloads}/thin.client*.tar.gz \
-  && rm -rf ${downloads}/client*.tar.gz \
-  && rm -rf ${downloads}/1c_edt*.tar.gz \
-  && if [ -z "$(ls -A ${downloads})" ]; then \
-  apk --no-cache add bash curl grep tar \
-  && set -x \
-  && sync; /download_og.sh; \
-  fi \
-  && rm -rf ${downloads}/*thin*.tar.gz \
-  && ls ${downloads} \
-  && for file in ${downloads}/*.tar.gz; do tar -xzf "$file"; done \
-  && rm -rf ${downloads}/*.*
+RUN <<'EOF'
+  [ "${DEBUG_TRACE:-0}" = "1" ] && set -x
+  apt-get update -qq
+  apt-get install -yq --no-install-recommends \
+    procps \
+    tzdata \
+    debconf-utils \
+    curl \
+    fontconfig \
+    unixodbc \
+    libgsf-1-114 \
+    keyboard-configuration
+  dpkg-reconfigure -f noninteractive tzdata
+  dpkg-reconfigure -f noninteractive keyboard-configuration
+  export LANG=ru_RU.UTF-8
+  if [ -d /usr/share/applications ]; then find /usr/share/applications -maxdepth 1 -name '*.desktop' -delete; fi
+EOF
 
-FROM i386/debian:bookworm-slim AS base
+# Установка gosu
+ADD --chmod=755 https://github.com/tianon/gosu/releases/download/$GOSU_VERSION/gosu-amd64 /bin/gosu
 
-ARG gosu_ver=1.11
-ARG ONEC_VERSION
-ARG nls_enabled=false
-ENV installer_type=server32
-ENV nls=$nls_enabled
+# Начало основной стадии сборки
+RUN --mount=type=cache,id=distr-cache,target=/var/cache/yard,sharing=locked \
+    --mount=type=secret,id=onec_username \
+    --mount=type=secret,id=onec_password <<'EOF'
+  [ "${DEBUG_TRACE:-0}" = "1" ] && set -x
+  ONEC_USERNAME="$(cat /run/secrets/onec_username)"
+  ONEC_PASSWORD="$(cat /run/secrets/onec_password)"
+  export ONEC_USERNAME ONEC_PASSWORD
+  onec-install --nls="$NLS_ENABLED" server_crs "$ONEC_VERSION"
+EOF
 
-COPY ./scripts/install.sh /install.sh
-COPY --from=downloader /tmp/*.* /tmp/
-WORKDIR /tmp
+# Переход к финальному образу
+FROM ${BASE_IMAGE}
 
-SHELL ["/bin/bash", "-c"]
-RUN ls . \
-  && chmod +x /install.sh \
-  && sync; /install.sh
+LABEL org.opencontainers.image.authors="Anton Kvashenkin <anton.jugatsu@gmail.com> (@jugatsu), \
+    Anatolii Sereda <3011745+anatox@users.noreply.github.com>"
 
-# create symlink to current 1c:enterprise directory
-COPY ./scripts/create-symlink-to-current-1cv8.sh /create-symlink-to-current-1cv8.sh
-RUN chmod +x /create-symlink-to-current-1cv8.sh \
-  && /create-symlink-to-current-1cv8.sh \
-  && rm /create-symlink-to-current-1cv8.sh
+SHELL ["/bin/bash", "-euo", "pipefail", "-c"]
 
-ADD https://github.com/tianon/gosu/releases/download/$gosu_ver/gosu-i386 /bin/gosu
-
-RUN chmod +x /bin/gosu
-
-FROM i386/debian:bookworm-slim
-LABEL maintainer="Anton Kvashenkin <anton.jugatsu@gmail.com> (@jugatsu)"
-
+ARG DEBUG_TRACE
 ARG onec_uid="999"
 ARG onec_gid="999"
+COPY --from=installer /opt/1cv8 /opt/1cv8
+COPY --from=installer /bin/gosu /bin/gosu
 
-COPY --from=base /opt /opt
-COPY --from=base /bin/gosu /bin/gosu
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt/lists,sharing=locked <<'EOF'
+  [ "${DEBUG_TRACE:-0}" = "1" ] && set -x
+  find /var/lib/apt/lists -name lock -delete 2>/dev/null || true
+  apt-get update -qq
+  DEBIAN_FRONTEND=noninteractive apt-get install -y -o=Dpkg::Use-Pty=0 --no-install-recommends \
+      locales
+  locale-gen ru_RU.UTF-8
+EOF
 
-RUN set -xe \
-  && apt-get update \
-  && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-      locales \
-  && rm -rf \
-    /var/lib/apt/lists/* \
-    /var/cache/debconf \
-  && localedef -i ru_RU -c -f UTF-8 -A /usr/share/locale/locale.alias ru_RU.UTF-8
-ENV LANG ru_RU.UTF-8
+# Установка переменных окружения для корректной работы локали
+ENV LANG=ru_RU.UTF-8
 
-RUN groupadd -r grp1cv8 --gid=$onec_gid \
-  && useradd -r -g grp1cv8 --uid=$onec_uid --home-dir=/home/usr1cv8 --shell=/bin/bash usr1cv8 \
-  && mkdir -p /home/usr1cv8/.1cv8 \
-  && chown -R usr1cv8:grp1cv8 /home/usr1cv8
+RUN <<'EOF'
+  [ "${DEBUG_TRACE:-0}" = "1" ] && set -x
+  getent group grp1cv8 >/dev/null || groupadd -r grp1cv8 --gid=$onec_gid
+  getent passwd usr1cv8 >/dev/null || useradd -r -g grp1cv8 --uid=$onec_uid --home-dir=/home/usr1cv8 --shell=/bin/bash usr1cv8
+  mkdir -p /home/usr1cv8/.1cv8
+  chown -R usr1cv8:grp1cv8 /home/usr1cv8
+EOF
 
 VOLUME /home/usr1cv8/.1cv8
 
-COPY ./crs/docker-entrypoint.sh /usr/local/bin
-RUN ln -s usr/local/bin/docker-entrypoint.sh / # backwards compat
-ENTRYPOINT ["docker-entrypoint.sh"]
+COPY --chmod=755 ./crs/entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN ln -s usr/local/bin/entrypoint.sh /  # backwards compat
 
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 EXPOSE 1542
 CMD ["crserver"]
