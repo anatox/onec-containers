@@ -1,0 +1,13 @@
+variable "ONEC_VERSION" { default = "8.5.1.1343" }
+variable "EDT_VERSION" { default = "2026.1.2" }
+variable "YARD_VERSION" { default = "1.12.0" }
+variable "ONESCRIPT_VERSION" { default = "2.1.0" }
+variable "OVM_VERSION" { default = "1.6.2" }
+variable "EXECUTOR_VERSION" { default = "3.0.2.2" }
+variable "COVERAGE41C_VERSION" { default = "2.7.3" }
+variable "OPENJDK_VERSION" { default = "17" }
+variable "GITSYNC_VERSION" { default = "3.7.3" }
+variable "VANESSA_RUNNER_VERSION" { default = "1.7.0" }
+variable "S6_OVERLAY_VERSION" { default = "3.2.2.0" }
+variable "JENKINS_REMOTING_VERSION" { default = "3283.v92c105e0f819" }
+variable "GOSU_VERSION" { default = "1.11" }

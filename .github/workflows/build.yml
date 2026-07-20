@@ -1,93 +1,123 @@
-name: Build Docker Images
+name: Bake CI
 
 on:
-  workflow_run:
-    workflows: ["Pre-build checks"]
-    types:
-      - completed
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      pattern:
+        description: 'Glob pattern for target names (leave empty for changed-only)'
+        type: string
+        default: ''
+      publish:
+        description: 'Publish images to registry'
+        type: boolean
+        default: false
 
 permissions:
-  checks: write
   contents: read
+  packages: write
+  id-token: write
+  attestations: write
+
+env:
+  REGISTRY: ghcr.io
+  CACHE_TO: ${{ github.ref_name == 'main' && 'true' || '' }}
 
 jobs:
+  plan:
+    runs-on: ubuntu-26.04
+    outputs:
+      matrix: ${{ steps.select.outputs.matrix }}
+      has-targets: ${{ steps.select.outputs.has-targets }}
+      build-all: ${{ steps.select.outputs.build-all }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Generate bake plan
+        run: scripts/bake.py --print default publish > bake-plan.json
+
+      - name: Select targets
+        id: select
+        run: |
+          ARGS=("--plan" "bake-plan.json" "--github-output")
+          if [ -n "${{ inputs.pattern }}" ]; then
+            ARGS+=("--all" "--pattern" "${{ inputs.pattern }}")
+          elif [ "${{ github.event_name }}" = "push" ]; then
+            ARGS+=("--git-range" "${{ github.event.before }}..${{ github.event.after }}")
+          else
+            ARGS+=("--all")
+          fi
+          python3 scripts/bake-select.py "${ARGS[@]}"
+
   build:
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
-    runs-on: ubuntu-latest
+    needs: plan
+    if: needs.plan.outputs.has-targets == 'true'
+    runs-on: ubuntu-26.04
+    name: build (${{ matrix.name }})
     strategy:
       fail-fast: false
-      matrix:
-        script: [ 'build-base-k8s-jenkins-agent.sh', 'build-base-k8s-jenkins-coverage-agent.sh', 'build-base-swarm-jenkins-agent.sh', 'build-base-swarm-jenkins-coverage-agent.sh', 'build-edt-swarm-agent.sh', 'build-edt-k8s-agent.sh', 'build-oscript-k8s-agent.sh', 'build-oscript-swarm-agent.sh', 'build-server.sh', 'build-executor.sh']
-
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
     steps:
-    - name: Maximize build space
-      uses: jlumbroso/free-disk-space@main 
-    - name: Checkout repository
-      uses: actions/checkout@v6
-      with:
-        fetch-depth: 0
-        repository: ${{ github.event.workflow_run.head_repository.full_name }}
-        ref: ${{ github.event.workflow_run.head_sha }}
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
 
-    - name: Create Check Run (Started)
-      uses: actions/github-script@v9
-      id: create_check_run
-      with:
-        script: |
-          const { data: checkRun } = await github.rest.checks.create({
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            name: 'Build Workflow - ${{ matrix.script }}',
-            head_sha: '${{ github.event.workflow_run.head_sha }}',
-            status: 'in_progress',
-            details_url: '${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}',
-            output: {
-              title: 'Build Started',
-              summary: 'Build has started.'
-            }
-          });
-          core.setOutput('check_run_id', checkRun.id);
+      - name: Free disk space
+        uses: endersonmenezes/free-disk-space@v3
+        with:
+          remove_android: true
+          remove_dotnet: true
+          remove_haskell: true
+          remove_tool_cache: true
+          remove_swap: true
+          remove_packages: "azure-cli google-cloud-cli microsoft-edge-stable google-chrome-stable firefox"
+          remove_packages_one_command: true
+          remove_folders: "/usr/share/swift /usr/share/miniconda /etc/skel /home/packer /opt/pipx /opt/actionarchivecache /opt/runner-cache"
+          rm_cmd: "rmz"
 
-    - name: Set up QEMU
-      uses: docker/setup-qemu-action@v4
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@v3
 
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v4
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-    - name: Build Docker images
-      env:
-        DOCKER_REGISTRY_URL: 'localhost:5000'
-        DOCKER_LOGIN: ""
-        DOCKER_PASSWORD: ""
-        ONEC_USERNAME: ${{ secrets.ONEC_USERNAME}}
-        ONEC_PASSWORD: ${{ secrets.ONEC_PASSWORD}}
-        DEV1C_EXECUTOR_API_KEY: ${{secrets.DEV1C_EXECUTOR_API_KEY}}
-        ONEC_VERSION: '8.3.24.1624'
-        EDT_VERSION: '2023.3.6'
-        OPENJDK_VERSION: '17'
-        EXECUTOR_VERSION: '7.0.3.3'
-        COVERAGE41C_VERSION: '2.7.3'
-        DOCKER_SYSTEM_PRUNE: 'false'
-      run: |
-        docker system prune -af
-        docker run -d -p 5000:5000 --name registry registry:2
-        ./${{ matrix.script }}
-        
-    - name: Update PR Check Status (Completed)
-      if: always()
-      uses: actions/github-script@v9
-      with:
-        script: |
-          const conclusion = '${{ job.status }}' === 'success' ? 'success' : 'failure';
-          await github.rest.checks.update({
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            check_run_id: ${{ steps.create_check_run.outputs.check_run_id }},
-            status: 'completed',
-            conclusion,
-            completed_at: new Date().toISOString(),
-            output: {
-              title: 'Build ' + (conclusion === 'success' ? 'Succeeded' : 'Failed'),
-              summary: `Workflow for script '${{ matrix.script }}' completed with conclusion: ${conclusion}`
-            }
-          });
+      - name: Login to GHCR
+        if: (github.event_name == 'push' && github.ref_name == 'main') || inputs.publish == true
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push ${{ matrix.target }}
+        env:
+          REGISTRY_PREFIX: ${{ env.REGISTRY }}/${{ github.repository_owner }}
+          GIT_SHA: ${{ github.sha }}
+          PUBLISH_LATEST: ${{ github.ref_name == 'main' && 'true' || 'false' }}
+          ONEC_USERNAME: ${{ secrets.ONEC_USERNAME }}
+          ONEC_PASSWORD: ${{ secrets.ONEC_PASSWORD }}
+          DEV1C_EXECUTOR_API_KEY: ${{ secrets.DEV1C_EXECUTOR_API_KEY }}
+        run: |
+          PUSH_FLAG=""
+          if [ "${{ github.event_name }}" = "push" ] || [ "${{ inputs.publish }}" = "true" ]; then
+            PUSH_FLAG="--push"
+          fi
+          scripts/bake.py "${{ matrix.target }}" $PUSH_FLAG --metadata-file "bake-metadata-${{ matrix.target }}.json"
+
+      - name: Sign image
+        if: (github.event_name == 'push' && github.ref_name == 'main') || inputs.publish == true
+        env:
+          COSIGN_PRIVATE_KEY: ${{ secrets.COSIGN_PRIVATE_KEY }}
+        run: |
+          DIGEST=$(jq -r '."${{ matrix.target }}"."containerimage.digest"' "bake-metadata-${{ matrix.target }}.json")
+          if [ -n "$DIGEST" ] && [ "$DIGEST" != "null" ]; then
+            cosign sign --yes "${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ matrix.image }}@${DIGEST}"
+          fi
