@@ -1,5 +1,6 @@
 ARG BASE_IMAGE=ubuntu:26.04
 ARG INSTALLER_IMAGE=localhost/onec-installer:local
+ARG DEBUG_TRACE
 
 FROM ${INSTALLER_IMAGE} AS installer
 
@@ -117,6 +118,20 @@ ENV LC_ALL=ru_RU.UTF-8
 COPY --from=installer /opt /opt
 COPY --from=installer /usr/share/icons /usr/share/icons
 COPY --from=installer /usr/share/applications /usr/share/applications
+
+FROM base AS toolbox
+
+SHELL ["/bin/bash", "-euo", "pipefail", "-c"]
+
+ARG DEBUG_TRACE
+
+COPY --chmod=755 scripts/distrobox-shims.sh /distrobox-shims.sh
+
+RUN <<'EOF'
+  [ "${DEBUG_TRACE:-0}" = "1" ] && set -x
+  /distrobox-shims.sh
+  rm /distrobox-shims.sh
+EOF
 
 FROM base AS client
 
