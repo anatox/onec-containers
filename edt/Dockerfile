@@ -38,7 +38,7 @@ RUN --mount=type=cache,id=distr-cache,target=/var/cache/yard,sharing=locked \
   onec-install edt "$EDT_VERSION"
 EOF
 
-FROM ${BASE_IMAGE}
+FROM ${BASE_IMAGE} AS final
 
 LABEL org.opencontainers.image.authors="Anatolii Sereda <3011745+anatox@users.noreply.github.com>"
 

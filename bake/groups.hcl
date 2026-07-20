@@ -1,66 +1,55 @@
-target "oscript" { inherits = ["oscript"] }
-target "installer" { inherits = ["installer"] }
-target "oscript-jdk" { inherits = ["oscript-jdk"] }
-target "oscript-jdk-s6" { inherits = ["oscript-jdk-s6"] }
-target "server" { inherits = ["server"] }
-target "client" { inherits = ["client"] }
-target "thin-client" { inherits = ["thin-client"] }
-target "crs" { inherits = ["crs"] }
-target "crs-apache" { inherits = ["crs-apache"] }
-target "edt" { inherits = ["edt"] }
-target "edt-s6" { inherits = ["edt-s6"] }
-target "client-s6" { inherits = ["client-s6"] }
-target "client-vnc" { inherits = ["client-vnc"] }
-target "client-vnc-oscript" { inherits = ["client-vnc-oscript"] }
-target "client-vnc-oscript-jdk" { inherits = ["client-vnc-oscript-jdk"] }
-target "vanessa-automation" { inherits = ["vanessa-automation"] }
-target "gitsync" { inherits = ["gitsync"] }
-target "vanessa-runner" { inherits = ["vanessa-runner"] }
-target "executor" { inherits = ["executor"] }
-
 group "default" {
   targets = [
-    "base-jenkins-agent",
+    "base-jenkins-agent-k8s",
+    "base-jenkins-agent-swarm",
     "client",
+    "client-oscript",
     "client-s6",
     "client-vnc",
     "client-vnc-oscript",
     "client-vnc-oscript-jdk",
-    "coverage-agent",
+    "coverage-agent-k8s",
+    "coverage-agent-swarm",
     "crs",
     "crs-apache",
     "edt",
-    "edt-agent",
+    "edt-agent-k8s",
+    "edt-agent-swarm",
     "edt-s6",
     "executor",
     "gitsync",
     "installer",
     "oscript",
-    "oscript-agent",
+    "oscript-agent-k8s",
+    "oscript-agent-swarm",
     "oscript-jdk",
     "oscript-jdk-s6",
     "server",
     "thin-client",
-    "vanessa-automation",
+    "test-utils",
     "vanessa-runner",
   ]
 }
 
 group "publish" {
   targets = [
-    "base-jenkins-agent",
+    "base-jenkins-agent-k8s",
+    "base-jenkins-agent-swarm",
     "client",
     "client-vnc",
-    "coverage-agent",
+    "coverage-agent-k8s",
+    "coverage-agent-swarm",
     "crs",
     "crs-apache",
     "edt",
-    "edt-agent",
+    "edt-agent-k8s",
+    "edt-agent-swarm",
     "executor",
     "gitsync",
     "installer",
     "oscript",
-    "oscript-agent",
+    "oscript-agent-k8s",
+    "oscript-agent-swarm",
     "server",
     "thin-client",
     "vanessa-runner",

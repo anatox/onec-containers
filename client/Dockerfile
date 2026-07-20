@@ -6,10 +6,8 @@ FROM ${INSTALLER_IMAGE} AS installer
 ARG ONEC_VERSION
 ARG NLS_ENABLED=false
 
-# Копирование локальных дистрибутивов
-COPY ./distr /distr
+COPY distr /distr
 
-# Установка gnupg и wget
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt/lists,sharing=locked <<'EOF'
   set -euxo pipefail
@@ -20,7 +18,6 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     ca-certificates
 EOF
 
-# Установка недостающих библиотек
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt/lists,sharing=locked <<'EOF'
   set -euxo pipefail
@@ -45,7 +42,6 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     geoclue-2.0
 EOF
 
-# Начало основной стадии сборки
 RUN --mount=type=cache,id=distr-cache,target=/var/cache/yard,sharing=locked \
     --mount=type=secret,id=onec_username \
     --mount=type=secret,id=onec_password <<'EOF'
@@ -56,16 +52,11 @@ RUN --mount=type=cache,id=distr-cache,target=/var/cache/yard,sharing=locked \
   onec-install --nls="$NLS_ENABLED" client "$ONEC_VERSION"
 EOF
 
-COPY ./client/configs/current/ /opt/1cv8/current/
+COPY client/configs/current/ /opt/1cv8/current/
 
-# Переход к финальному образу
-FROM ${BASE_IMAGE}
+FROM ${BASE_IMAGE} AS base
 LABEL org.opencontainers.image.authors="Anatolii Sereda <3011745+anatox@users.noreply.github.com>"
 
-ARG onec_uid="999"
-ARG onec_gid="999"
-
-# Установка gnupg и wget
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt/lists,sharing=locked <<'EOF'
   set -euxo pipefail
@@ -74,7 +65,6 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     gnupg \
     wget \
     ca-certificates
-  mkdir -p -m 0755 /etc/apt/keyrings
 EOF
 
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
@@ -84,7 +74,6 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
   echo "ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula select true" | debconf-set-selections
   DEBIAN_FRONTEND=noninteractive apt-get install -y -o=Dpkg::Use-Pty=0 --no-install-recommends \
     locales \
-    ca-certificates \
     libgtk2.0-0t64 \
     libwebkit2gtk-4.1-0 \
     ttf-mscorefonts-installer \
@@ -100,7 +89,6 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
   if [ -d /usr/share/applications ]; then find /usr/share/applications -maxdepth 1 -name '*.desktop' -delete; fi
 EOF
 
-# Установка переменных окружения для корректной работы локали
 ENV LANG=ru_RU.UTF-8
 ENV LANGUAGE=ru_RU:ru
 ENV LC_ALL=ru_RU.UTF-8

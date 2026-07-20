@@ -1,4 +1,5 @@
 target "edt" {
+  target = "final"
   dockerfile = "edt/Dockerfile"
   context = "."
   contexts = {
@@ -10,6 +11,7 @@ target "edt" {
   secret = ["id=onec_username,env=ONEC_USERNAME", "id=onec_password,env=ONEC_PASSWORD"]
   tags = tags("edt", EDT_VERSION)
   labels = labels("edt", "1C:Enterprise Development Tools ${EDT_VERSION}")
+  description = jsonencode({"extra-srcs" = ["scripts/install-edt-jdk.sh", "scripts/install-edt-nginx.sh"]})
   cache_from = cache_from("edt")
   cache_to = cache_to("edt")
 }
@@ -22,11 +24,10 @@ target "edt-s6" {
   }
   args = {
     BASE_IMAGE = "localhost/edt:local"
+    S6_OVERLAY_VERSION = "${S6_OVERLAY_VERSION}"
   }
   tags = tags("edt-s6", EDT_VERSION)
-  labels = merge(labels("edt-s6", "s6 overlay on EDT ${EDT_VERSION}"), {
-    "onec.skip-publish" = "true"
-  })
+  labels = labels("edt-s6", "s6 overlay on EDT ${EDT_VERSION}")
   cache_from = cache_from("edt-s6")
   cache_to = cache_to("edt-s6")
 }
