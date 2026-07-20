@@ -1,91 +1,27 @@
 # Примеры сборки и наслаивания
 
-Ниже список последовательно собираемых образов для различных целей. Каждый следущий слой собирается поверх предыдущего. В Dockerfile базовый образ указывается с помощью переменных BASE_IMAGE и BASE_TAG.
+Сборка через `./bake.py <target>` (см. [AGENTS.md](./AGENTS.md) раздел Bake).
 
-## Запуск 1С
+## Варианты сборки
 
-* client
-* s6-overlay
-* client-vnc
+| Назначение | Команда |
+|---|---|
+| Запуск 1С | `./bake.py client` |
+| 1С + OneScript | `./bake.py client-vnc-oscript` |
+| 1C Jenkins агент | `./bake.py base-jenkins-agent-k8s` или `base-jenkins-agent-swarm` |
+| 1C Jenkins агент с покрытием | `./bake.py coverage-jenkins-agent-k8s` |
+| EDT | `./bake.py edt` |
+| EDT Jenkins агент | `./bake.py edt-agent-k8s` |
+| OneScript Jenkins агент | `./bake.py oscript-jenkins-agent-k8s` |
+| Сервер хранилища + Apache | `./bake.py crs-apache` |
+| Toolbox (distrobox) | `./bake.py client-toolbox` / `edt-toolbox` |
+| Элемент.Скрипт | `./bake.py elementscript` |
+| GitSync | `./bake.py gitsync` |
+| Vanessa Runner | `./bake.py vanessa-runner` |
 
-## 1С и OneScript
+## Полная сборка
 
-* client
-* s6-overlay
-* client-vnc
-* oscript
-
-## 1С + OneScript для запуска VA
-
-* client
-* s6-overlay
-* client-vnc
-* oscript
-* test-utils
-
-## 1C как Jenkins агент
-
-* client
-* s6-overlay
-* client-vnc
-* jdk
-* swarm-jenkins-agent или k8s-jenkins-agent
-
-## 1С + OneScript как Jenkins агент
-
-* client
-* s6-overlay
-* client-vnc
-* oscript
-* jdk
-* swarm-jenkins-agent или k8s-jenkins-agent
-
-## 1С + OneScript как Jenkins агент для запуска тестов
-
-* client
-* s6-overlay
-* client-vnc
-* oscript
-* jdk
-* test-utils
-* swarm-jenkins-agent или k8s-jenkins-agent
-
-Реализовано в скриптах:
-
-* [build-base-swarm-jenkins-agent.sh](build-base-swarm-jenkins-agent.sh)
-* [build-base-k8s-jenkins-agent.sh](build-base-k8s-jenkins-agent.sh)
-
-## EDT
-
-* edt
-
-Реализовано в скриптах:
-
-* [build-edt.sh](build-edt.sh)
-
-## EDT как Jenkins агент
-
-* edt
-* s6-overlay
-* swarm-jenkins-agent или k8s-jenkins-agent
-
-Реализовано в скриптах:
-
-* [build-edt-swarm-agent.sh](build-edt-swarm-agent.sh)
-* [build-edt-k8s-agent.sh](build-edt-k8s-agent.sh)
-
-## OneScript как Jenkins агент
-
-* oscript поверх library/eclipse-temurin:17
-* s6-overlay
-* swarm-jenkins-agent или k8s-jenkins-agent
-
-Реализовано в скриптах:
-
-* [build-oscript-swarm-agent.sh](build-oscript-swarm-agent.sh)
-* [build-oscript-k8s-agent.sh](build-oscript-k8s-agent.sh) # TODO
-
-## Сервер хранилища + Apache
-
-* crs
-* crs-apache
+```bash
+./bake.py default    # все цели
+./bake.py publish    # только публикуемые
+```
