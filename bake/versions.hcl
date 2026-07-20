@@ -8,7 +8,7 @@ variable "ONESCRIPT_VERSION" { default = "2.1.0" }
 # renovate: datasource=github-releases depName=oscript-library/ovm
 variable "OVM_VERSION" { default = "1.6.2" }
 
-variable "EXECUTOR_VERSION" { default = "3.0.2.2" }
+variable "ELEMENTSCRIPT_VERSION" { default = "3.0.2.2" }
 
 # renovate: datasource=github-releases depName=1c-syntax/Coverage41C
 variable "COVERAGE41C_VERSION" { default = "2.7.3" }

@@ -5,7 +5,7 @@ FROM ${BASE_IMAGE}
 LABEL org.opencontainers.image.authors="Iosif Pravets <i@pravets.ru>, \
     Anatolii Sereda <3011745+anatox@users.noreply.github.com>"
 
-ARG EXECUTOR_VERSION
+ARG ELEMENTSCRIPT_VERSION
 
 WORKDIR /tmp
 
@@ -23,21 +23,19 @@ EOF
 
 ENV LANG=ru_RU.UTF-8
 
-# Install Executor (используем BuildKit secret)
-RUN --mount=type=secret,id=dev1c_executor_api_key <<'EOF'
+RUN --mount=type=secret,id=elementscript_download_token <<'EOF'
   set -eux
   curl -sSL --fail \
-    -H "X-Developer-1c-Api:$(cat /run/secrets/dev1c_executor_api_key)" \
-    -o executor.zip \
-    https://developer.1c.ru/applications/Console/api/v1/download/executor/${EXECUTOR_VERSION}/linux
-  unzip executor.zip
-  rm executor.zip
-  mkdir -p /opt/1C/executor
-  cp -R * /opt/1C/executor
-# cleanup
+    -H "X-Developer-1c-Api:$(cat /run/secrets/elementscript_download_token)" \
+    -o script.zip \
+    https://developer.1c.ru/applications/Console/api/v1/download/elementscript/${ELEMENTSCRIPT_VERSION}/linux
+  unzip script.zip
+  rm script.zip
+  mkdir -p /opt/1C/script
+  cp -R * /opt/1C/script
   rm -rf /tmp/*
   apt-get purge -y unzip
 EOF
 
-ENV PATH="/opt/1C/executor:$PATH"
-ENTRYPOINT ["/opt/1C/executor/executor"]
+ENV PATH="/opt/1C/script:$PATH"
+ENTRYPOINT ["/opt/1C/script/executor"]
