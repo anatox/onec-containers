@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  dev:
+    image: mcr.microsoft.com/devcontainers/base:ubuntu
+    hostname: onec-dev
+    volumes:
+      - ..:/workspaces/onec-containers:cached
+      - onec-distr:/workspaces/onec-containers/distr:U
+    command: sleep infinity
+    cap_add:
+      - SYS_PTRACE
+    security_opt:
+      - seccomp:unconfined
+
+volumes:
+  onec-distr:
+    name: ${COMPOSE_PROJECT_NAME}-distr
+  onec-buildx:

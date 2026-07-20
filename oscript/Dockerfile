@@ -1,69 +1,73 @@
-ARG DOCKER_REGISTRY_URL
-ARG BASE_IMAGE=debian
-ARG BASE_TAG=bookworm-slim
+ARG BASE_IMAGE=ubuntu:26.04
 
-FROM ${DOCKER_REGISTRY_URL:+"$DOCKER_REGISTRY_URL/"}${BASE_IMAGE}:${BASE_TAG}
+FROM debian:13-slim AS oscript-installer
 
-# Installing mono and oscript dependencies
-ARG MONO_VERSION=6.12.0.122
+ARG OVM_REPOSITORY_OWNER=oscript-library
+ARG OVM_VERSION
+ARG ONESCRIPT_VERSION
 
-RUN apt-get update \
-  && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-      ca-certificates \
-      gnupg \
-      dirmngr \
-      wget \
-      libicu-dev \
-      pkg-config \
-  && apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 3FA7E0328081BFF6A14DA29AA6A19B38D3D831EF \
-  && echo "deb http://download.mono-project.com/repo/debian stable-buster main" > /etc/apt/sources.list.d/mono-official-stable.list \
-  && apt-get update \
-  && DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -y \
+ENV OVM_INSTALL_PATH=/opt/ovm
+ENV LANG=C.UTF-8
+ENV LC_ALL=C.UTF-8
+
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt/lists,sharing=locked <<'EOF'
+  set -eux
+  apt-get update -qq
+  DEBIAN_FRONTEND=noninteractive apt-get install -y -o=Dpkg::Use-Pty=0 --no-install-recommends \
+    curl \
+    ca-certificates \
     mono-runtime \
     ca-certificates-mono \
     libmono-i18n4.0-all \
-    libmono-system-runtime-serialization4.0-cil \
-  && rm -rf /etc/apt/sources.list.d/mono-official-stable.list \
-  && apt-get update \
-  && cert-sync --user /etc/ssl/certs/ca-certificates.crt \
-  && rm -rf  \
-    /var/lib/apt/lists/* \
-    /var/cache/debconf \
-    /tmp/*
+    libmono-system-runtime-serialization4.0-cil
+  cert-sync /etc/ssl/certs/ca-certificates.crt
+  curl -sSL -o ovm.exe "https://github.com/${OVM_REPOSITORY_OWNER}/ovm/releases/download/v${OVM_VERSION}/ovm.exe"
+  mkdir -m 755 -p "${OVM_INSTALL_PATH}"
+  mv ovm.exe "${OVM_INSTALL_PATH}"
+  printf '%s\n' '#!/usr/bin/env sh' "mono ${OVM_INSTALL_PATH}/ovm.exe \"\$@\"" > /usr/local/bin/ovm
+  chmod +x /usr/local/bin/ovm
+EOF
 
-# remove DST Root CA X3 cert if it exists
-COPY ./scripts/remove-dst-root-ca-x3.sh /remove-dst-root-ca-x3.sh
-RUN chmod +x /remove-dst-root-ca-x3.sh \
-  && /remove-dst-root-ca-x3.sh \
-  && rm /remove-dst-root-ca-x3.sh
+RUN <<'EOF'
+  set -eux
+  export HOME=/root
+  ovm use --install "${ONESCRIPT_VERSION}"
+  rm -f "${OVM_INSTALL_PATH}/ovm.exe" /usr/local/bin/ovm
+EOF
 
-# Installing oscript
-ARG OVM_REPOSITORY_OWNER=oscript-library
-ARG OVM_VERSION=v1.6.1
-ARG ONESCRIPT_VERSION=stable
-ARG ONESCRIPT_PACKAGES="add gitsync vanessa-runner stebi edt-ripper"
+FROM ${BASE_IMAGE}
 
-RUN wget https://github.com/${OVM_REPOSITORY_OWNER}/ovm/releases/download/${OVM_VERSION}/ovm.exe \
-  && mv ovm.exe /usr/local/bin/ \
-  && echo 'mono /usr/local/bin/ovm.exe "$@"' | tee /usr/local/bin/ovm \
-  && chmod +x /usr/local/bin/ovm \
-  && ovm use --install ${ONESCRIPT_VERSION}
+LABEL org.opencontainers.image.authors="Anatolii Sereda <3011745+anatox@users.noreply.github.com>"
 
-ENV OSCRIPTBIN=/root/.local/share/ovm/current/bin
-ENV PATH="$OSCRIPTBIN:$PATH"
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt/lists,sharing=locked <<'EOF'
+  set -eux
+  apt-get update -qq
+  DEBIAN_FRONTEND=noninteractive apt-get install -y -o=Dpkg::Use-Pty=0 --no-install-recommends \
+    locales \
+    libicu-dev \
+    ca-certificates
+  locale-gen ru_RU.UTF-8
+EOF
 
-# Update and prepare oscript packages
-RUN opm install opm \
-  && opm update --all \
-  && opm install ${ONESCRIPT_PACKAGES} \
-  && if echo "$ONESCRIPT_PACKAGES" | grep -q "gitsync"; then \
-       gitsync plugins init \
-       && gitsync plugins enable limit \
-       && gitsync plugins disable limit; \
-     fi
+ENV LANG=ru_RU.UTF-8
+ENV LANGUAGE=ru_RU:ru
+ENV LC_ALL=ru_RU.UTF-8
 
-COPY ./oscript/docker-entrypoint.sh /
-RUN chmod 755 /docker-entrypoint.sh \
-  && chmod +x /docker-entrypoint.sh
+ENV OVM_INSTALL_PATH=/opt/ovm
+COPY --from=oscript-installer ${OVM_INSTALL_PATH} ${OVM_INSTALL_PATH}
+ENV OSCRIPT_HOME=$OVM_INSTALL_PATH/current
+ENV PATH="$OSCRIPT_HOME/bin:$PATH"
 
-ENTRYPOINT ["/docker-entrypoint.sh"]
+ARG ONESCRIPT_PACKAGES=""
+RUN <<'EOF'
+  set -eux
+  opm install opm
+  opm update --all
+  if [ -n "${ONESCRIPT_PACKAGES}" ]; then opm install ${ONESCRIPT_PACKAGES}; fi
+EOF
+
+COPY --chmod=755 ./oscript/entrypoint.sh /
+
+ENTRYPOINT ["/entrypoint.sh"]
