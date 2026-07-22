@@ -1,90 +1,94 @@
-# Описание
+# onec-containers
 
 [![forthebadge](http://forthebadge.com/images/badges/built-with-love.svg)](http://forthebadge.com)
 
-В данном репозитории находятся файлы для сборки образов [Docker](https://www.docker.com) с платформой [1С:Предприятие](http://v8.1c.ru) 8.3.
+В данном репозитории находятся файлы для сборки образов [Docker](https://www.docker.com) с платформой [1С:Предприятие](http://v8.1c.ru) 8. Также есть отдельные образы для запуска на [Distrobox] (https://distrobox.it).
 
 ## Оглавление
 
-- [Описание](#описание)
-  - [Оглавление](#оглавление)
-  - [Использование](#использование)
-  - [Как сбилдить образы](#как-сбилдить-образы)
-  - [Как использовать готовые дистрибутивы](#как-использовать-готовые-дистрибутивы)
-  - [Как использовать образы в Jenkins в режиме Docker Swarm](#как-использовать-образы-в-jenkins-в-режиме-docker-swarm)
-    - [Настройка nethasp.ini](#настройка-nethaspini)
-  - [Сервер](#сервер)
-  - [Сервер с дополнительными языками](#сервер-с-дополнительными-языками)
-  - [Клиент](#клиент)
-  - [Клиент с поддержкой VNC](#клиент-с-поддержкой-vnc)
-  - [Клиент с дополнительными языками](#клиент-с-дополнительными-языками)
-  - [Тонкий клиент](#тонкий-клиент)
-  - [Тонкий клиент с дополнительными языками](#тонкий-клиент-с-дополнительными-языками)
-  - [Хранилище конфигурации](#хранилище-конфигурации)
-  - [rac-gui](#rac-gui)
-  - [gitsync](#gitsync)
-  - [oscript](#oscript)
-  - [vanessa-runner](#vanessa-runner)
-  - [EDT](#edt)
-  - [Исполнитель](#исполнитель)
+<!-- TOC -->
+
+- [Использование](#использование)
+- [Локальная сборка](#локальная-сборка)
+  - [Devcontainer](#devcontainer)
+- [Как использовать готовые дистрибутивы](#как-использовать-готовые-дистрибутивы)
+- [Как использовать образы в Jenkins в режиме Docker Swarm](#как-использовать-образы-в-jenkins-в-режиме-docker-swarm)
+  - [Настройка nethasp.ini](#настройка-nethaspini)
+- [Сервер](#сервер)
+- [Клиент](#клиент)
+- [Клиент с поддержкой VNC](#клиент-с-поддержкой-vnc)
+- [Тонкий клиент](#тонкий-клиент)
+- [Хранилище конфигурации](#хранилище-конфигурации)
+- [gitsync](#gitsync)
+- [oscript](#oscript)
+- [vanessa-runner](#vanessa-runner)
+- [EDT](#edt)
+- [Элемент.Скрипт (Исполнитель)](#элементскрипт-исполнитель)
+- [Toolbox-образы для distrobox](#toolbox-образы-для-distrobox)
+
+<!-- /TOC -->
 
 ## Использование
 
 В терминале введите:
 
-Команда Linux:
-
 ```bash
-# для Linux
-$ cp .onec.env.example .onec.env
+$ cp .envrc.example .envrc
 ```
 
-```batch
-:: для Windows
-copy .onec.env.bat.example env.bat
-```
-
-Скорректируйте файл `.onec.env` в соответствии со своим окружением:
+Скорректируйте файл `.envrc` в соответствии со своим окружением:
 
 - ONEC_USERNAME - учётная запись на [releases.1c.ru](https://releases.1c.ru)
 - ONEC_PASSWORD - пароль для учётной записи на [releases.1c.ru](https://releases.1c.ru)
-- ONEC_VERSION - версия платформы 1С:Преприятия 8.3, которая будет в образе
-- EDT_VERSION - версия EDT. Обязательно заполнять только при сборке образов с EDT или при использовании замеров покрытия (см. `COVERAGE41C_VERSION`)
-- OPENJDK_VERSION - версия JDK (temurin)
-- DOCKER_REGISTRY_URL - Адрес Docker-registry в котором будут храниться образы
+- ONEC_VERSION - версия платформы 1С:Предприятия для сборки образов платформы
+- ONESCRIPT_VERSION - версия OneScript для сборки `oscript`/`onec-installer`
+- EDT_VERSION - версия EDT для сборки образов EDT или при использовании замеров покрытия (см. `COVERAGE41C_VERSION`)
+- CONTAINER_REGISTRY_URL - адрес container-registry для публикации образов
 - COVERAGE41C_VERSION - версия Coverage41C
-Используется при сборке агента скриптами `build-base-*-jenkins-coverage-agent.*`.
-- DEV1C_EXECUTOR_API_KEY - токен для api скачивания 1С:Исполнитель с сайта developer.1c.ru
-- EXECUTOR_VERSION - версия 1С:Исполнитель для сборки
-- TEST_UTILS_EXTRA_PACKAGES - дополнительные пакеты, которые будут установлены при сборке `test-utils` и которые будут доступны в финальном образе
+- ELEMENTSCRIPT_DOWNLOAD_TOKEN - токен для api скачивания 1С:Предприятие Элемент.Скрипт с сайта developer.1c.ru
+- ELEMENTSCRIPT_VERSION - версия 1С:Предприятие Элемент.Скрипт для сборки
+- TEST_UTILS_EXTRA_PACKAGES - дополнительные пакеты для `test-utils`
+- NO_CACHE - установить в `true` для сборки без кеша
+- PUSH - установить в `true` для публикации образов в registry
 
 Затем экспортируйте все необходимые переменные:
 
 ```bash
-# для Linux
-$ source .onec.env
+source .envrc
 ```
 
-```batch
-:: для Windows
-env.bat
+Либо активировать автозагрузку с помощью [direnv](https://direnv.net/):
+
+```bash
+direnv allow
 ```
 
-## Как сбилдить образы
+# Локальная сборка
 
-:point_up: Запустите последовательно скрипты для сборки образов.
+```bash
+source .envrc
+scripts/bake.py server          # один образ
+scripts/bake.py default         # все образы
+REGISTRY_PREFIX=ghcr.io/user scripts/bake.py --push server  # публикация
+```
 
-1. Если вам нужны образы для использования в docker-swarm:
+# Devcontainer
 
-    - build-base-swarm-jenkins-agent.sh (или build-base-swarm-jenkins-coverage-agent.sh с замерами покрытия)
-    - build-edt-swarm-agent.sh
-    - build-oscript-swarm-agent.sh
+Проект включает конфигурацию [devcontainer](https://containers.dev) (`.devcontainer/`) для локальной разработки:
 
-2. Если же вы планируете использовать k8s:
+При открытии проекта, VS Code предложит переоткрыть в контейнере → "Reopen in Container". Также можно набрать в палитре команд:
 
-    - build-base-k8s-jenkins-agent.sh (или build-base-k8s-jenkins-coverage-agent.sh с замерами покрытия)
-    - build-edt-k8s-agent.sh
-    - build-oscript-k8s-agent.sh
+```
+> Dev Containers: Reopen in Container
+```
+
+Devcontainer предоставляет:
+- Docker-in-Docker для сборки образов через `docker buildx bake`
+- Python 3 для `scripts/bake.py` и `scripts/bake-select.py`
+- Установку direnv и автозагрузку `.envrc`
+- Необходимые системные пакеты (bash, git, jq)
+
+Файл `.devcontainer/devcontainer.json` описывает образ, фичи и postCreate-скрипт.
 
 ## Как использовать готовые дистрибутивы
 
@@ -111,24 +115,7 @@ env.bat
 [(Наверх)](#оглавление)
 
 ```bash
-docker build --build-arg ONEC_USERNAME=${ONEC_USERNAME} \
-  --build-arg ONEC_PASSWORD=${ONEC_PASSWORD} \
-  --build-arg ONEC_VERSION=${ONEC_VERSION} \
-  -t ${DOCKER_REGISTRY_URL}/onec-server:${ONEC_VERSION} \
-  -f server/Dockerfile .
-```
-
-## Сервер с дополнительными языками
-
-[(Наверх)](#оглавление)
-
-```bash
-docker build --build-arg ONEC_USERNAME=${ONEC_USERNAME} \
-  --build-arg ONEC_PASSWORD=${ONEC_PASSWORD} \
-  --build-arg ONEC_VERSION=${ONEC_VERSION} \
-  --build-arg nls_enabled=true \
-  -t ${DOCKER_REGISTRY_URL}/onec-server-nls:${ONEC_VERSION} \
-  -f server/Dockerfile .
+scripts/bake.py server
 ```
 
 ## Клиент
@@ -136,11 +123,7 @@ docker build --build-arg ONEC_USERNAME=${ONEC_USERNAME} \
 [(Наверх)](#оглавление)
 
 ```bash
-docker build --build-arg ONEC_USERNAME=${ONEC_USERNAME} \
-  --build-arg ONEC_PASSWORD=${ONEC_PASSWORD} \
-  --build-arg ONEC_VERSION=${ONEC_VERSION} \
-  -t ${DOCKER_REGISTRY_URL}/onec-client:${ONEC_VERSION} \
-  -f client/Dockerfile .
+scripts/bake.py client
 ```
 
 ## Клиент с поддержкой VNC
@@ -148,23 +131,7 @@ docker build --build-arg ONEC_USERNAME=${ONEC_USERNAME} \
 [(Наверх)](#оглавление)
 
 ```bash
-docker build --build-arg DOCKER_REGISTRY_URL=${DOCKER_REGISTRY_URL} \
-  --build-arg ONEC_VERSION=${ONEC_VERSION} \
-  -t ${DOCKER_REGISTRY_URL}/onec-client-vnc:${ONEC_VERSION} \
-  -f client-vnc/Dockerfile .
-```
-
-## Клиент с дополнительными языками
-
-[(Наверх)](#оглавление)
-
-```bash
-docker build --build-arg ONEC_USERNAME=${ONEC_USERNAME} \
-  --build-arg ONEC_PASSWORD=${ONEC_PASSWORD} \
-  --build-arg ONEC_VERSION=${ONEC_VERSION} \
-  --build-arg nls_enabled=true \
-  -t ${DOCKER_REGISTRY_URL}/onec-client-nls:${ONEC_VERSION} \
-  -f client/Dockerfile .
+scripts/bake.py client-vnc
 ```
 
 ## Тонкий клиент
@@ -172,24 +139,7 @@ docker build --build-arg ONEC_USERNAME=${ONEC_USERNAME} \
 [(Наверх)](#оглавление)
 
 ```bash
-docker build --build-arg ONEC_USERNAME=${ONEC_USERNAME} \
-  --build-arg ONEC_PASSWORD=${ONEC_PASSWORD} \
-  --build-arg ONEC_VERSION=${ONEC_VERSION} \
-  -t ${DOCKER_REGISTRY_URL}/onec-thin-client:${ONEC_VERSION} \
-  -f thin-client/Dockerfile .
-```
-
-## Тонкий клиент с дополнительными языками
-
-[(Наверх)](#оглавление)
-
-```bash
-docker build --build-arg ONEC_USERNAME=${ONEC_USERNAME} \
-  --build-arg ONEC_PASSWORD=${ONEC_PASSWORD} \
-  --build-arg ONEC_VERSION=${ONEC_VERSION} \
-  --build-arg nls_enabled=true \
-  -t ${DOCKER_REGISTRY_URL}/onec-thin-client-nls:${ONEC_VERSION} \
-  -f thin-client/Dockerfile .
+scripts/bake.py thin-client
 ```
 
 ## Хранилище конфигурации
@@ -197,22 +147,7 @@ docker build --build-arg ONEC_USERNAME=${ONEC_USERNAME} \
 [(Наверх)](#оглавление)
 
 ```bash
-docker build --build-arg ONEC_USERNAME=${ONEC_USERNAME} \
-  --build-arg ONEC_PASSWORD=${ONEC_PASSWORD} \
-  --build-arg ONEC_VERSION=${ONEC_VERSION} \
-  -t ${DOCKER_REGISTRY_URL}/onec-crs:${ONEC_VERSION} \
-  -f crs/Dockerfile .
-```
-
-## rac-gui
-
-[(Наверх)](#оглавление)
-
-```bash
-docker build --build-arg DOCKER_REGISTRY_URL=${DOCKER_REGISTRY_URL} \
-  --build-arg ONEC_VERSION=${ONEC_VERSION} \
-  -t ${DOCKER_REGISTRY_URL}/onec-rac-gui:${ONEC_VERSION}-1.0.1 \
-  -f rac-gui/Dockerfile .
+scripts/bake.py crs
 ```
 
 ## gitsync
@@ -220,10 +155,7 @@ docker build --build-arg DOCKER_REGISTRY_URL=${DOCKER_REGISTRY_URL} \
 [(Наверх)](#оглавление)
 
 ```bash
-docker build --build-arg DOCKER_REGISTRY_URL=${DOCKER_REGISTRY_URL} \
-  --build-arg ONEC_VERSION=${ONEC_VERSION} \
-  -t ${DOCKER_REGISTRY_URL}/gitsync:3.0.0 \
-  -f gitsync/Dockerfile .
+scripts/bake.py gitsync
 ```
 
 ## oscript
@@ -231,10 +163,7 @@ docker build --build-arg DOCKER_REGISTRY_URL=${DOCKER_REGISTRY_URL} \
 [(Наверх)](#оглавление)
 
 ```bash
-docker build --build-arg DOCKER_REGISTRY_URL=${DOCKER_REGISTRY_URL} \
-  --build-arg ONEC_VERSION=${ONEC_VERSION} \
-  -t ${DOCKER_REGISTRY_URL}/oscript:1.0.21 \
-  -f oscript/Dockerfile .
+scripts/bake.py oscript
 ```
 
 ## vanessa-runner
@@ -242,9 +171,7 @@ docker build --build-arg DOCKER_REGISTRY_URL=${DOCKER_REGISTRY_URL} \
 [(Наверх)](#оглавление)
 
 ```bash
-docker build --build-arg DOCKER_REGISTRY_URL=${DOCKER_REGISTRY_URL} \
-  -t ${DOCKER_REGISTRY_URL}/runner:1.7.0 \
-  -f vanessa-runner/Dockerfile .
+scripts/bake.py vanessa-runner
 ```
 
 ## EDT
@@ -252,19 +179,32 @@ docker build --build-arg DOCKER_REGISTRY_URL=${DOCKER_REGISTRY_URL} \
 [(Наверх)](#оглавление)
 
 ```bash
-docker build --build-arg ONEC_USERNAME=${ONEC_USERNAME} \
-    --build-arg ONEC_PASSWORD=${ONEC_PASSWORD} \
-    --build-arg EDT_VERSION=${EDT_VERSION} \
-    -t ${DOCKER_REGISTRY_URL}/edt:${EDT_VERSION} \
-    -f edt/Dockerfile .
+scripts/bake.py edt
 ```
 
-## Исполнитель
+## Элемент.Скрипт (Исполнитель)
 
 [(Наверх)](#оглавление)
 
 ```bash
-./build-executor.sh
+scripts/bake.py elementscript
 ```
 
-Собирать обязательно через запуск скрипта, так как в нём реализован безопасный проброс секретов в окружение сборки
+## Toolbox-образы для distrobox
+
+[(Наверх)](#оглавление)
+
+Образы `edt-toolbox` и `client-toolbox` предназначены для использования с [distrobox](https://distrobox.it/) или [toolbx](https://containertoolbx.org/).
+
+```bash
+scripts/bake.py client-toolbox      # 1С клиент + toolbox
+scripts/bake.py edt-toolbox         # EDT + toolbox
+scripts/bake.py edt-toolbox-client  # EDT + 1С клиент + toolbox
+```
+
+Для использования с distrobox после сборки:
+
+```bash
+distrobox create --image localhost/edt-toolbox:local --name edt-toolbox
+distrobox enter edt-toolbox
+```
