@@ -3,3 +3,5 @@
 README.md
 .gitkeep
 .envrc
+.venv
+**/.shellcheckrc

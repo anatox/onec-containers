@@ -1,0 +1,13 @@
+name: onec-containers-test
+services:
+  registry:
+    image: registry:2
+    volumes:
+      - bake_registry:/var/lib/registry
+    environment:
+      REGISTRY_STORAGE_DELETE_ENABLED: "true"
+    ports:
+      - "127.0.0.1:5000:5000"
+    
+volumes:
+  bake_registry: {}

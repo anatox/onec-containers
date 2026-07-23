@@ -27,3 +27,8 @@ bake-metadata.json
 
 # Devcontainer overrides
 .devcontainer/local.compose.yaml
+
+# Python venv
+.venv
+*.egg-info/
+build/
