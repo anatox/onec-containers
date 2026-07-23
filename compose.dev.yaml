@@ -1,9 +1,7 @@
-version: '3.3'
-
 services:
 
   srv:
-    image: ${DOCKER_REGISTRY_URL}/onec-server:${ONEC_VERSION}
+    image: ${CONTAINER_REGISTRY_URL:-localhost}/onec-server:${ONEC_VERSION:-local}
     hostname: srv
     ports:
       - "1540-1541:1540-1541"
@@ -26,7 +24,7 @@ services:
           - db
 
   repo:
-    image: ${DOCKER_REGISTRY_URL}/onec-crs:${ONEC_VERSION}
+    image: ${CONTAINER_REGISTRY_URL:-localhost}/onec-crs:${ONEC_VERSION:-local}
     ports:
       - "${CRS_PORT}:1542"
     volumes:
@@ -35,7 +33,7 @@ services:
       - back_net
 
   ras:
-    image: ${DOCKER_REGISTRY_URL}/onec-server:${ONEC_VERSION}
+    image: ${CONTAINER_REGISTRY_URL:-localhost}/onec-server:${ONEC_VERSION:-local}
     entrypoint: /opt/1cv8/current/ras
     command: "cluster srv:1540"
     ports:
@@ -44,7 +42,7 @@ services:
       - back_net
 
   client:
-    image: ${DOCKER_REGISTRY_URL}/onec-client-vnc:${ONEC_VERSION}
+    image: ${CONTAINER_REGISTRY_URL:-localhost}/onec-client-vnc:${ONEC_VERSION:-local}
     ports:
       - "5900:5900"
     volumes:
