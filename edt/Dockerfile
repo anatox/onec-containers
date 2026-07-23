@@ -86,3 +86,17 @@ COPY --from=installer /usr/share/applications /usr/share/applications
 
 ENV JAVA_HOME=/opt/1C/1CE/components/jdk-current
 ENV PATH="$JAVA_HOME/bin:/opt/1C/1CE/components/1c-edt-current:/opt/1C/1CE/components/1c-edt-start-current:$PATH"
+
+FROM final AS toolbox
+
+SHELL ["/bin/bash", "-euo", "pipefail", "-c"]
+
+ARG DEBUG_TRACE
+
+COPY --chmod=755 scripts/distrobox-shims.sh /distrobox-shims.sh
+
+RUN <<'EOF'
+  [ "${DEBUG_TRACE:-0}" = "1" ] && set -x
+  /distrobox-shims.sh
+  rm /distrobox-shims.sh
+EOF
