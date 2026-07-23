@@ -1,0 +1,127 @@
+#!/usr/bin/env bash
+
+set -euo pipefail && [ "${DEBUG_TRACE:-0}" = "1" ] && set -x
+
+echo '::group:: Installing shellcheck ... https://github.com/koalaman/shellcheck'
+TEMP_PATH="$(mktemp -d)"
+cd "${TEMP_PATH}" || exit
+mkdir bin
+
+WINDOWS_TARGET=zip
+
+# Get system architecture
+ARCH=$(uname -m)
+if [[ "${ARCH}" == "arm64" || "${ARCH}" == "aarch64" ]]; then
+  CPU_ARCH="aarch64"
+else
+  CPU_ARCH="x86_64"
+fi
+
+# Set targets based on OS and architecture
+if [[ $(uname -s) == "Linux" ]]; then
+  LINUX_TARGET="linux.${CPU_ARCH}.tar.xz"
+  curl -sL "https://github.com/koalaman/shellcheck/releases/download/v${SHELLCHECK_VERSION}/shellcheck-v${SHELLCHECK_VERSION}.${LINUX_TARGET}" | tar -xJf -
+  cp "shellcheck-v$SHELLCHECK_VERSION/shellcheck" ./bin
+elif [[ $(uname -s) == "Darwin" ]]; then
+  MACOS_TARGET="darwin.${CPU_ARCH}.tar.xz"
+  curl -sL "https://github.com/koalaman/shellcheck/releases/download/v${SHELLCHECK_VERSION}/shellcheck-v${SHELLCHECK_VERSION}.${MACOS_TARGET}" | tar -xJf -
+  cp "shellcheck-v$SHELLCHECK_VERSION/shellcheck" ./bin
+else
+  curl -sL "https://github.com/koalaman/shellcheck/releases/download/v${SHELLCHECK_VERSION}/shellcheck-v${SHELLCHECK_VERSION}.${WINDOWS_TARGET}" -o "shellcheck-v${SHELLCHECK_VERSION}.${WINDOWS_TARGET}" && unzip "shellcheck-v${SHELLCHECK_VERSION}.${WINDOWS_TARGET}" && rm "shellcheck-v${SHELLCHECK_VERSION}.${WINDOWS_TARGET}"
+  cp "shellcheck.exe" ./bin
+fi
+
+PATH="${TEMP_PATH}/bin:$PATH"
+shellcheck --version
+echo '::endgroup::'
+
+cd "${GITHUB_WORKSPACE}" || exit
+
+export REVIEWDOG_GITHUB_API_TOKEN="${INPUT_GITHUB_TOKEN}"
+
+paths=()
+while read -r pattern; do
+    [[ -n ${pattern} ]] && paths+=("${pattern}")
+done <<< "${INPUT_PATH:-.}"
+
+names=()
+if [[ "${INPUT_PATTERN:-*}" != '*' ]]; then
+    while read -r pattern; do
+        [[ -n ${pattern} ]] && names+=(-o -name "${pattern}")
+    done <<< "${INPUT_PATTERN}"
+    (( ${#names[@]} )) && { names[0]='('; names+=(')'); }
+fi
+
+excludes=()
+while read -r pattern; do
+    [[ -n ${pattern} ]] && excludes+=(-not -path "${pattern}")
+done <<< "${INPUT_EXCLUDE:-}"
+
+# Match all files matching the pattern
+files_with_pattern=$(find "${paths[@]}" "${excludes[@]}" -type f "${names[@]}")
+
+# Match all files with a shebang (e.g. "#!/usr/bin/env zsh" or even "#!bash") in the first line of a file
+# Ignore files which match "$pattern" in order to avoid duplicates
+if [ "${INPUT_CHECK_ALL_FILES_WITH_SHEBANGS}" = "true" ] && (( ${#names[@]} )); then  
+  files_with_shebang=$(find "${paths[@]}" "${excludes[@]}" -not "${names[@]}" -type f -print0 | xargs -0 awk 'FNR==1 && /^#!.*sh/ { print FILENAME }')
+fi
+
+# Exit early if no files have been found
+if [ -z "${files_with_pattern}" ] && [ -z "${files_with_shebang:-}" ]; then
+  echo "No matching files found to check."
+  exit 0
+fi
+
+FILES="${files_with_pattern} ${files_with_shebang:-}"
+
+echo '::group:: Running shellcheck ...'
+if [ "${INPUT_REPORTER}" = 'github-pr-review' ]; then
+  # erroformat: https://git.io/JeGMU
+  # shellcheck disable=SC2086
+  shellcheck -f json  ${INPUT_SHELLCHECK_FLAGS:-'--external-sources'} ${FILES} \
+    | jq -r '.[] | "\(.file):\(.line):\(.column):\(if .level == "style" then "info" else .level end):\(.message) [SC\(.code)](https://github.com/koalaman/shellcheck/wiki/SC\(.code))"' \
+    | reviewdog \
+        -efm="%f:%l:%c:%t%*[^:]:%m" \
+        -name="shellcheck" \
+        -reporter=github-pr-review \
+        -filter-mode="${INPUT_FILTER_MODE}" \
+        -fail-level="${INPUT_FAIL_LEVEL}" \
+        -fail-on-error="${INPUT_FAIL_ON_ERROR}" \
+        -level="${INPUT_LEVEL}" \
+        ${INPUT_REVIEWDOG_FLAGS}
+  EXIT_CODE=$?
+else
+  # github-pr-check,github-check (GitHub Check API) doesn't support markdown annotation.
+  # shellcheck disable=SC2086
+  shellcheck -f checkstyle ${INPUT_SHELLCHECK_FLAGS:-'--external-sources'} ${FILES} \
+    | reviewdog \
+        -f="checkstyle" \
+        -name="shellcheck" \
+        -reporter="${INPUT_REPORTER:-github-pr-check}" \
+        -filter-mode="${INPUT_FILTER_MODE}" \
+        -fail-level="${INPUT_FAIL_LEVEL}" \
+        -fail-on-error="${INPUT_FAIL_ON_ERROR}" \
+        -level="${INPUT_LEVEL}" \
+        ${INPUT_REVIEWDOG_FLAGS}
+  EXIT_CODE=$?
+fi
+echo '::endgroup::'
+
+echo '::group:: Running shellcheck (suggestion) ...'
+# -reporter must be github-pr-review for the suggestion feature.
+# sk: suggestion pass never fails — diffs have no severity, would always be "error"
+# shellcheck disable=SC2086
+shellcheck -f diff ${FILES} \
+  | reviewdog \
+      -name="shellcheck (suggestion)" \
+      -f=diff \
+      -f.diff.strip=1 \
+      -reporter="github-pr-review" \
+      -filter-mode="${INPUT_FILTER_MODE}" \
+      -fail-level=none \
+      ${INPUT_REVIEWDOG_FLAGS}
+echo '::endgroup::'
+
+if [ "${EXIT_CODE}" -ne 0 ]; then
+  exit ${EXIT_CODE}
+fi

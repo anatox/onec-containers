@@ -1,0 +1,3 @@
+# s6-overlay использует нестандартный shebang #!/command/with-contenv sh.
+external-sources=true
+shell=sh
