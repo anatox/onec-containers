@@ -8,7 +8,7 @@ LABEL org.opencontainers.image.authors="Iosif Pravets <i@pravets.ru>, \
 SHELL ["/bin/bash", "-euo", "pipefail", "-c"]
 ARG DEBUG_TRACE
 
-ARG EXECUTOR_VERSION
+ARG ELEMENTSCRIPT_VERSION
 
 WORKDIR /tmp
 
@@ -26,30 +26,30 @@ EOF
 
 ENV LANG=ru_RU.UTF-8
 
-RUN --mount=type=secret,id=dev1c_executor_api_key <<'EOF'
+RUN --mount=type=secret,id=elementscript_download_key <<'EOF'
   [ "${DEBUG_TRACE:-0}" = "1" ] && set -x
   apt-get update -qq
   DEBIAN_FRONTEND=noninteractive apt-get install -y -o=Dpkg::Use-Pty=0 --no-install-recommends \
     unzip
-  key="$(cat /run/secrets/dev1c_executor_api_key)"
+  key="$(cat /run/secrets/elementscript_download_key)"
   if [ -z "$key" ]; then
-    echo "::error::Не задано значение DEV1C_EXECUTOR_API_KEY"
+    echo "::error::Не задано значение ELEMENTSCRIPT_DOWNLOAD_KEY"
     exit 1
   fi
   curl -sSL --fail \
     -H "X-Developer-1c-Api:$key" \
-    -o executor.zip \
-    https://developer.1c.ru/applications/Console/api/v1/download/executor/${EXECUTOR_VERSION}/linux || {
-    echo "::error::Не удалось скачать дистрибутив Executor ${EXECUTOR_VERSION} — проверьте ключ DEV1C_EXECUTOR_API_KEY или доступность developer.1c.ru"
+    -o script.zip \
+    https://developer.1c.ru/applications/Console/api/v1/download/elementscript/${ELEMENTSCRIPT_VERSION}/linux || {
+    echo "::error::Не удалось скачать дистрибутив Элемент.Скрипт ${ELEMENTSCRIPT_VERSION} — проверьте ключ ELEMENTSCRIPT_DOWNLOAD_KEY или доступность developer.1c.ru"
     exit 1
   }
-  unzip executor.zip
-  rm executor.zip
-  mkdir -p /opt/1C/executor
-  cp -R ./* /opt/1C/executor
+  unzip script.zip
+  rm script.zip
+  mkdir -p /opt/1C/script
+  cp -R ./* /opt/1C/script
   rm -rf /tmp/*
   apt-get purge -y unzip
 EOF
 
-ENV PATH="/opt/1C/executor:$PATH"
-ENTRYPOINT ["/opt/1C/executor/executor"]
+ENV PATH="/opt/1C/script:$PATH"
+ENTRYPOINT ["/opt/1C/script/executor"]
