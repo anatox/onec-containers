@@ -2,6 +2,7 @@
 
 .env
 .onec.env
+.envrc
 env.bat
 build_info.txt
 .DS_Store
