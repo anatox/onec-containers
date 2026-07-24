@@ -5,7 +5,6 @@ ARG EDT_VERSION
 FROM ${INSTALLER_IMAGE} AS installer
 
 SHELL ["/bin/bash", "-euo", "pipefail", "-c"]
-
 ARG DEBUG_TRACE
 ARG EDT_VERSION
 
