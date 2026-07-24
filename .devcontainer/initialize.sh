@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env sh
 set -eu
 
 if [ ! -f .devcontainer/local.compose.yaml ]; then
