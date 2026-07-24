@@ -58,8 +58,9 @@ def _workflow_command(line: str) -> str | None:
 
 
 def _run_reemitting(cmd: list[str]) -> int:
-    """Запускает команду с препроцессингом workflow-команд GitHub Actions из stdout.
-
+    """Запускает команду с препроцессингом stdout.
+    
+    Удаляет префиксы Buildx для корректной работы команд GitHub Actions.
     Дубликаты команд подавляются. Возвращает код возврата процесса.
     """
     proc = subprocess.Popen(
