@@ -69,9 +69,6 @@ def _run_reemitting(cmd: list[str]) -> int:
         stderr=subprocess.STDOUT,
         cwd=ROOT,
     )
-    raw_out = sys.stdout.buffer
-    decoder = codecs.getincrementaldecoder("utf-8")(errors="replace")
-    pending = ""
     seen: set[str] = set()
 
     def scan(line: str) -> None:
