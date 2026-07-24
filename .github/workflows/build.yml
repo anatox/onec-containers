@@ -191,10 +191,6 @@ jobs:
           TARGET: ${{ matrix.target }}
           IMAGE: ${{ matrix.image }}
         run: |
-          if [ -z "$COSIGN_PRIVATE_KEY" ]; then
-            echo "::notice::COSIGN_PRIVATE_KEY not set, skipping signing"
-            exit 0
-          fi
           DIGEST=$(jq -r --arg t "$TARGET" '.[$t]."containerimage.digest"' "bake-metadata-$TARGET.json")
           if [ -n "$DIGEST" ] && [ "$DIGEST" != "null" ]; then
             cosign sign --yes "${{ env.REGISTRY }}/${{ github.repository_owner }}/$IMAGE@${DIGEST}"
