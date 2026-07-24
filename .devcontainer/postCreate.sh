@@ -11,6 +11,21 @@ pre-commit install
 BASHRC="${_REMOTE_USER_HOME:-$HOME}/.bashrc"
 ZSHRC="${_REMOTE_USER_HOME:-$HOME}/.zshrc"
 
+if ! grep -q _complete_bake "${BASHRC}" 2>/dev/null; then
+    ./bake --print-completion-script=bash >> "${BASHRC}"
+fi
+
+if ! grep -q _complete_bake "${ZSHRC}" 2>/dev/null; then
+    ./bake --print-completion-script=zsh >> "${ZSHRC}"
+fi
+
+if [ -n "${ZSH_VERSION:-}" ]; then
+    eval "$(./bake --print-completion-script=zsh)"
+else
+    eval "$(./bake --print-completion-script=bash)"
+fi
+
+docker buildx version
 ./bake --version >/dev/null
 
 echo ""
