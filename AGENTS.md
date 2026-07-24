@@ -71,10 +71,11 @@ Overlay targets (s6-overlay, jdk, test-utils) are defined at the consumer, not i
 
 ### Labels & Selector Metadata
 
-- Real image labels are limited to `org.opencontainers.image.title` and `org.opencontainers.image.version` (inline literals in each target's `labels` map) — everything else (`org.opencontainers.image.*` description/vendor/etc.) comes from `docker/metadata-action` in CI via `inherits`.
-- `onec.image` (registry repo name, mandatory) is selector-only metadata — it is **not** a label. Stored in HCL via `description = jsonencode({"image" = "...", ...})` so it never lands on the built image.
-- `onec.skip-publish`: no longer a label — intermediate targets are simply omitted from `group "publish"` in `bakery/groups.hcl`.
-- `onec.extra-srcs` = cross-dir inputs (COPY from scripts/, other directories) — selector matches these prefixes when finding affected targets. Stored in the same `description` JSON object: `description = jsonencode({"image" = "...", "extra-srcs" = [...]})`.
+- **HCL labels**: `org.opencontainers.image.title` and `org.opencontainers.image.version` must be declared in each target's `labels` map.
+- **Dockerfile labels**: `org.opencontainers.image.authors` must be declared in Dockerfiles for per-file history.
+- **Generated labels**: `org.opencontainers.image.description`, `org.opencontainers.image.vendor`, and all other `org.opencontainers.image.*` keys come from `docker/metadata-action` in CI via `inherits`.
+- **Description JSON keys**: `"image"` (registry repo name, mandatory) and optional `"extra-srcs"` (cross-dir COPY inputs). Stored via `description = jsonencode({"image" = "...", ...})` — never lands on the built image.
+- Intermediate targets not intended for publishing are simply omitted from `group "publish"` in `bakery/groups.hcl`.
 
 ### Adding a new target — checklist
 
