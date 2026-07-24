@@ -78,6 +78,11 @@ jobs:
     needs: plan
     if: needs.plan.outputs.has-targets == 'true'
     runs-on: ubuntu-26.04
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
     name: Build (${{ matrix.name }})
     strategy:
       fail-fast: false
