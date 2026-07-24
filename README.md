@@ -63,22 +63,12 @@ Workflow автоматически подписывает образы чере
 
 Проверка подписи:
 
-1. Сгенерировать ключевую пару **без пароля** (GHA не поддерживает интерактивный ввод):
-   ```bash
-   COSIGN_PASSWORD= cosign generate-key-pair
-   ```
-   Результат: `cosign.key` (приватный) и `cosign.pub` (публичный).
-
-2. **Приватный ключ** — добавить содержимое `cosign.key` как секрет `COSIGN_PRIVATE_KEY`.
-
-3. **Публичный ключ** — добавить (перезаписать) файл `cosign.pub` в корне репозитория.
-
-4. **Проверка подписи**:
-   ```bash
-   cosign verify --key cosign.pub ghcr.io/<owner>/<image>:<tag>
-   ```
-
-Без `COSIGN_PRIVATE_KEY` шаг подписи будет пропущен — образы останутся неподписанными, но будут опубликованы.
+```bash
+cosign verify \
+  --certificate-identity "https://github.com/<owner>/<repo>/.github/workflows/build.yml@refs/heads/main" \
+  --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+  ghcr.io/<owner>/<image>:<tag>
+```
 
 ## Локальная сборка
 
