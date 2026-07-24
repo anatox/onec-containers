@@ -105,7 +105,7 @@ REGISTRY_PREFIX=ghcr.io/user ./bake build server -- --push  # публикаци
 
 При открытии проекта, VS Code предложит переоткрыть в контейнере → "Reopen in Container". Также можно набрать в палитре команд:
 
-```
+```text
 > Dev Containers: Reopen in Container
 ```
 
