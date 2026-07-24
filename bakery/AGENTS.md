@@ -9,6 +9,7 @@ For HCL layout, named contexts, tag scheme, labels, and the new-target checklist
 - `./bake-select` → `python3 -m bakery.select` (standalone selector)
 
 Python modules:
+
 | File | Role |
 |---|---|
 | `bakery/main.py` | invoke `Program` with tasks: `build`, `plan`, `select`, `lint` |
