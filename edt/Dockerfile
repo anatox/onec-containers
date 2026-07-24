@@ -47,7 +47,6 @@ LABEL org.opencontainers.image.authors="Nikita Gryzlov <NikGryzlov@1bit.com>, Fi
     Anatolii Sereda <3011745+anatox@users.noreply.github.com>"
 
 SHELL ["/bin/bash", "-euo", "pipefail", "-c"]
-
 ARG DEBUG_TRACE
 ARG EDT_VERSION
 
