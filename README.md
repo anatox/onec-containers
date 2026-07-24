@@ -75,7 +75,7 @@ cosign verify \
 В терминале введите:
 
 ```bash
-$ cp .envrc.example .envrc
+cp .envrc.example .envrc
 ```
 
 Скорректируйте `.envrc`, указав учётные данные и registry:
