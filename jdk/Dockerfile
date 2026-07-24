@@ -27,8 +27,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     wget
   update-ca-certificates
   mkdir -p /etc/apt/keyrings
-  echo "Acquire::https::packages.adoptium.net::Verify-Peer \"false\";" | tee /etc/apt/apt.conf.d/adoptium-no-check-cert
-  wget --no-check-certificate --no-verbose -O - https://packages.adoptium.net/artifactory/api/gpg/key/public | gpg --dearmor -o /etc/apt/keyrings/adoptium.gpg
+  wget --no-verbose -O - https://packages.adoptium.net/artifactory/api/gpg/key/public | gpg --dearmor -o /etc/apt/keyrings/adoptium.gpg
   echo "deb [signed-by=/etc/apt/keyrings/adoptium.gpg] https://packages.adoptium.net/artifactory/deb $(awk -F= '/^VERSION_CODENAME/{print$2}' /etc/os-release) main" | tee /etc/apt/sources.list.d/adoptium.list
   apt-get update -qq
   apt-get install -y -o=Dpkg::Use-Pty=0 --no-install-recommends temurin-${OPENJDK_VERSION}-jdk
