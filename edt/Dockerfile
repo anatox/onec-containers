@@ -48,6 +48,7 @@ LABEL org.opencontainers.image.authors="Nikita Gryzlov <NikGryzlov@1bit.com>, Fi
 
 SHELL ["/bin/bash", "-euo", "pipefail", "-c"]
 ARG DEBUG_TRACE
+
 ARG EDT_VERSION
 
 WORKDIR /tmp
