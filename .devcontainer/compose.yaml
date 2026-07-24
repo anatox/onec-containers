@@ -8,6 +8,5 @@ services:
     command: sleep infinity
     cap_add:
       - SYS_PTRACE
-    hostname: onec-dev
     security_opt:
       - seccomp:unconfined
