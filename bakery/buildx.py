@@ -70,8 +70,11 @@ def _run_reemitting(cmd: list[str]) -> int:
         cwd=ROOT,
     )
     seen: set[str] = set()
-
-    def scan(line: str) -> None:
+    assert proc.stdout is not None
+    # newline="" — readline режет по \n/\r/\r\n, концы строк проходят как есть
+    stdout = io.TextIOWrapper(proc.stdout, encoding="utf-8", errors="replace", newline="")
+    for line in stdout:
+        sys.stdout.write(line)
         cmd_line = _workflow_command(line)
         if cmd_line and cmd_line not in seen:
             seen.add(cmd_line)
