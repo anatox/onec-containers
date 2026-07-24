@@ -31,7 +31,6 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
   echo "deb [signed-by=/etc/apt/keyrings/adoptium.gpg] https://packages.adoptium.net/artifactory/deb $(awk -F= '/^VERSION_CODENAME/{print$2}' /etc/os-release) main" | tee /etc/apt/sources.list.d/adoptium.list
   apt-get update -qq
   apt-get install -y -o=Dpkg::Use-Pty=0 --no-install-recommends temurin-${OPENJDK_VERSION}-jdk
-  rm -f /etc/apt/apt.conf.d/adoptium-no-check-cert
   locale-gen ru_RU.UTF-8
 EOF
 
