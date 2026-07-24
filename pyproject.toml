@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "docker-bakery"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = ["invoke>=3.0"]
+
+[project.optional-dependencies]
+dev = ["mypy==2.3.0"]
+
+[project.scripts]
+bake = "bakery.main:main"
+
+[tool.setuptools]
+packages = ["bakery"]
+
+[tool.mypy]
+strict = true
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "C4"]
+ignore = []

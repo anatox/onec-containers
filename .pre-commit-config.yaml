@@ -1,0 +1,87 @@
+fail_fast: true
+
+default_language_version:
+  python: python3.14
+
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.14.10
+    hooks:
+      - id: ruff
+        name: ruff (auto-fix)
+        stages: [pre-commit]
+        args: [--fix]
+      - id: ruff
+        name: ruff (check only)
+        stages: [pre-push]
+      - id: ruff-format
+        name: ruff format (auto-format)
+        stages: [pre-commit]
+      - id: ruff-format
+        name: ruff format (check only)
+        stages: [pre-push]
+        args: [--check, --diff]
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: check-yaml
+        stages: [pre-commit, pre-push]
+      - id: check-json
+        stages: [pre-commit, pre-push]
+      - id: check-merge-conflict
+        stages: [pre-commit, pre-push]
+      - id: trailing-whitespace
+        stages: [pre-commit]
+      - id: end-of-file-fixer
+        stages: [pre-commit]
+
+  - repo: local
+    hooks:
+      - id: bake-check
+        name: bake lint (HCL syntax)
+        language: system
+        entry: ./bake lint
+        files: ^(.*\.hcl$|bake$|bakery/|pyproject\.toml$)
+        stages: [pre-commit, pre-push]
+        pass_filenames: false
+      - id: mypy
+        name: mypy --strict (bakery)
+        language: system
+        entry: bash -c './bake --version > /dev/null && exec .venv/bin/mypy bakery/'
+        files: ^(bakery/|pyproject\.toml$)
+        pass_filenames: false
+        stages: [pre-commit, pre-push]
+
+  - repo: https://github.com/rhysd/actionlint
+    rev: v1.7.12
+    hooks:
+      - id: actionlint
+        stages: [pre-commit, pre-push]
+
+  - repo: https://github.com/shenxianpeng/hadolint-pre-commit
+    rev: v2.14.0.1
+    hooks:
+      - id: hadolint
+        name: hadolint
+        stages: [pre-commit, pre-push]
+        args: [--failure-threshold, error]
+
+  - repo: https://github.com/docker-compose-linter/pre-commit-dclint
+    rev: v3.1.0
+    hooks:
+      - id: dclint
+        name: dclint (auto-fix, errors only)
+        stages: [pre-commit]
+        args: [--fix, --quiet]
+      - id: dclint
+        name: dclint (full analysis)
+        stages: [pre-push]
+
+  - repo: https://github.com/koalaman/shellcheck-precommit
+    rev: v0.11.0
+    hooks:
+      - id: shellcheck
+        name: shellcheck
+        stages: [pre-commit, pre-push]
+        args: [--severity=error]

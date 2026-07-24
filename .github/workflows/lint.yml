@@ -1,0 +1,146 @@
+name: Lint
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lint-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  hadolint:
+    runs-on: ubuntu-26.04
+    permissions:
+      contents: read
+      checks: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: reviewdog/action-hadolint@1b2cfa6ba72072ad35158d7ff3aa49bbdc03506d # v1
+        with:
+          reporter: github-pr-review
+          level: warning
+          fail_level: error
+          reviewdog_flags: ${{ runner.debug && '-tee' || '' }}
+
+  actionlint:
+    runs-on: ubuntu-26.04
+    permissions:
+      contents: read
+      checks: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: reviewdog/action-actionlint@50842263c20a7c46bd0065b9e624d3c569db061e # v1
+        with:
+          reporter: github-pr-review
+          level: warning
+          fail_level: error
+          reviewdog_flags: ${{ runner.debug && '-tee' || '' }}
+
+  dclint:
+    runs-on: ubuntu-26.04
+    permissions:
+      contents: read
+      checks: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: docker-compose-linter/dclint-github-action/reviewdog-action@18659f6a7956706cb67cf9c1ad5e55f4352cbc17 # v1.6.0
+        with:
+          reporter: github-pr-review
+          level: warning
+          fail_level: error
+          dclint_flags: '-r .'
+          reviewdog_flags: ${{ runner.debug && '-tee' || '' }}
+
+  shellcheck:
+    runs-on: ubuntu-26.04
+    permissions:
+      contents: read
+      checks: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/shellcheck
+        with:
+          reporter: github-pr-review
+          level: warning
+          fail_level: error
+          check_all_files_with_shebangs: 'true'
+          reviewdog_flags: ${{ runner.debug && '-tee' || '' }}
+
+  mypy:
+    runs-on: ubuntu-26.04
+    permissions:
+      contents: read
+      checks: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: tsuyoshicho/action-mypy@c3615998c006f1dee3b5c6f7ec99edace2575687 # v5
+        with:
+          reporter: github-pr-review
+          level: warning
+          fail_level: error
+          setup_method: install
+          setup_command: 'pip install .[dev]'
+          target: 'bakery/'
+          reviewdog_flags: ${{ runner.debug && '-tee' || '' }}
+
+  ruff:
+    runs-on: ubuntu-26.04
+    permissions:
+      contents: read
+      checks: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: benner/action-ruff@b68335e5b7cf8004d363eaae8277c57199bf5bca # v0.2.0
+        id: ruff
+        with:
+          reporter: github-pr-review
+          level: warning
+          fail_level: error
+          reviewdog_flags: ${{ runner.debug && '-tee' || '' }}
+      - uses: benner/action-ruff@b68335e5b7cf8004d363eaae8277c57199bf5bca # v0.2.0
+        if: ${{ !cancelled() && steps.ruff.outcome == 'success' }}
+        with:
+          reporter: github-pr-review
+          level: info
+          ruff_flags: 'format --check'
+          reviewdog_flags: ${{ runner.debug && '-tee' || '' }}
+
+  bake-hcl:
+    runs-on: ubuntu-26.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - run: ./bake lint
+
+  zizmor:
+    runs-on: ubuntu-26.04
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: zizmorcore/zizmor-action@6599ee8b7a49aef6a770f63d261d214911a7ce02 # v0.6.0

@@ -1,0 +1,62 @@
+services:
+
+  srv:
+    image: ${CONTAINER_REGISTRY_URL:-localhost}/onec-server:${ONEC_VERSION:-local}
+    hostname: srv
+    ports:
+      - "127.0.0.1:1540-1541:1540-1541"
+      - "127.0.0.1:1560:1560"
+    volumes:
+      - srv_data:/home/usr1cv8/.1cv8
+      - srv_log:/var/log/1C
+    networks:
+      - back_net
+
+  db:
+    image: rsyuzyov/docker-postgresql-pro-1c:${ONEC_PG_VERSION}
+    ports:
+      - "127.0.0.1:${PG_PORT}:5432"
+    volumes:
+      - db_data:/var/lib/postgresql
+    networks:
+      back_net:
+        aliases:
+          - db
+
+  repo:
+    image: ${CONTAINER_REGISTRY_URL:-localhost}/onec-crs:${ONEC_VERSION:-local}
+    ports:
+      - "127.0.0.1:${CRS_PORT}:1542"
+    volumes:
+      - repo_data:/home/usr1cv8/.1cv8
+    networks:
+      - back_net
+
+  ras:
+    image: ${CONTAINER_REGISTRY_URL:-localhost}/onec-server:${ONEC_VERSION:-local}
+    ports:
+      - "127.0.0.1:${RAS_PORT}:1545"
+    entrypoint: /opt/1cv8/current/ras
+    command: "cluster srv:1540"
+    networks:
+      - back_net
+
+  client:
+    image: ${CONTAINER_REGISTRY_URL:-localhost}/onec-client-vnc:${ONEC_VERSION:-local}
+    ports:
+      - "127.0.0.1:5900:5900"
+    volumes:
+      - client_data:/home/usr1cv8/.1cv8
+      - ${PWD}/nethasp.ini:/opt/1cv8/current/conf/nethasp.ini
+    networks:
+      - back_net
+
+volumes:
+  srv_data: {}
+  srv_log: {}
+  db_data: {}
+  repo_data: {}
+  client_data: {}
+
+networks:
+  back_net: {}

@@ -1,30 +1,38 @@
-ARG DOCKER_REGISTRY_URL
-ARG ONEC_VERSION
+ARG BASE_IMAGE=localhost/onec-crs:local
 
-FROM ${DOCKER_REGISTRY_URL:+"$DOCKER_REGISTRY_URL/"}crs:${ONEC_VERSION}
+FROM ${BASE_IMAGE}
+
+LABEL org.opencontainers.image.authors="Nikita Gryzlov <NikGryzlov@1bit.com>, FirstBit, \
+    Anatolii Sereda <3011745+anatox@users.noreply.github.com>"
+
+SHELL ["/bin/bash", "-euo", "pipefail", "-c"]
+ARG DEBUG_TRACE
 
 ARG REPO_DIR=/home/usr1cv8/.1cv8/repo
 
-RUN apt-get update \
-  && DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -y \
-    apache2 \
-  && rm -rf  \
-    /var/lib/apt/lists/* \
-    /var/cache/debconf \
-    /tmp/*
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt/lists,sharing=locked <<EOF
+  [ "${DEBUG_TRACE:-0}" = "1" ] && set -x
+  find /var/lib/apt/lists -name lock -delete 2>/dev/null || true
+  apt-get update -qq
+  DEBIAN_FRONTEND=noninteractive apt-get install -y -o=Dpkg::Use-Pty=0 --no-install-recommends \
+    apache2
+  locale-gen ru_RU.UTF-8
+EOF
 
 COPY ./crs-apache/1crs.conf /etc/apache2/conf-available/
 RUN ln -s /etc/apache2/conf-available/1crs.conf /etc/apache2/conf-enabled/1crs.conf
-RUN echo "export APACHE_RUN_DIR=/etc/apache2\$SUFFIX" >> /etc/apache2/envvars \
-  && echo "export APACHE_PID_FILE=/etc/apache2\$SUFFIX/apache2.pid" >> /etc/apache2/envvars 
+RUN <<EOF
+  [ "${DEBUG_TRACE:-0}" = "1" ] && set -x
+echo "export APACHE_RUN_DIR=/etc/apache2\$SUFFIX" >> /etc/apache2/envvars
+echo "export APACHE_PID_FILE=/etc/apache2\$SUFFIX/apache2.pid" >> /etc/apache2/envvars
+EOF
 
 COPY ./crs-apache/repo.1ccr /home/usr1cv8/.1cv8
 RUN mkdir -p ${REPO_DIR}
 
-COPY ./crs-apache/docker-entrypoint.sh /
-RUN chmod 755 /docker-entrypoint.sh \
-  && chmod +x /docker-entrypoint.sh
+COPY --chmod=755 ./crs-apache/entrypoint.sh /
 
-ENTRYPOINT ["/docker-entrypoint.sh"]
+ENTRYPOINT ["/entrypoint.sh"]
 
 EXPOSE 80
