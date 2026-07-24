@@ -90,7 +90,6 @@ ENV PATH="$JAVA_HOME/bin:/opt/1C/1CE/components/1c-edt-current:/opt/1C/1CE/compo
 FROM final AS toolbox
 
 SHELL ["/bin/bash", "-euo", "pipefail", "-c"]
-
 ARG DEBUG_TRACE
 
 COPY --chmod=755 scripts/distrobox-shims.sh /distrobox-shims.sh
