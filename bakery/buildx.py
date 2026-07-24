@@ -1,6 +1,5 @@
 """Обёртка docker buildx bake — сборка командной строки, запуск, препроцессинг."""
 
-import codecs
 import glob
 import os
 import re
