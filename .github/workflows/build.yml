@@ -188,7 +188,6 @@ jobs:
       - name: Sign ${{ matrix.target }}
         if: (github.event_name == 'push' && github.ref_name == 'main') || inputs.publish == true
         env:
-          COSIGN_PRIVATE_KEY: ${{ secrets.COSIGN_PRIVATE_KEY }}
           TARGET: ${{ matrix.target }}
           IMAGE: ${{ matrix.image }}
         run: |
