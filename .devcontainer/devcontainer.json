@@ -25,6 +25,7 @@
         "exiasr.hadolint",
         "hashicorp.hcl",
         "redhat.vscode-yaml",
+        "charliermarsh.ruff",
         "timonwong.shellcheck"
       ]
     }
