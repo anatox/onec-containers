@@ -43,7 +43,7 @@ Logic:
 - `push`: plan job (checkout depth 0 → `--git-range`) → build matrix per published target
 - `pull_request`: plan job (checkout depth 0 → `--git-range`) → build matrix per published target
 - `workflow_dispatch`: `--all` (or `--pattern`)
-- Secrets: `ONEC_USERNAME`, `ONEC_PASSWORD`, `ELEMENTSCRIPT_DOWNLOAD_KEY`, `COSIGN_PRIVATE_KEY`
+- Secrets: `ONEC_USERNAME`, `ONEC_PASSWORD`, `ELEMENTSCRIPT_DOWNLOAD_KEY`
 
 ## Limitations
 
