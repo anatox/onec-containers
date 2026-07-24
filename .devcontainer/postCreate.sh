@@ -29,8 +29,7 @@ docker buildx version
 ./bake --version >/dev/null
 
 echo ""
-echo "Devcontainer ready."
-echo "Build leaf target:    ./bake build oscript"
-echo "Build server chain:   ./bake build server"
-echo "Build full graph:     ./bake build default"
+echo "Сборка конечного образа:    ./bake build oscript"
+echo "Сборка цепочки сервера:     ./bake build server"
+echo "Сборка всех образов:        ./bake build default"
 echo ""
