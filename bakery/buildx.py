@@ -1,6 +1,7 @@
 """Обёртка docker buildx bake — сборка командной строки, запуск, препроцессинг."""
 
 import glob
+import io
 import os
 import re
 import subprocess
