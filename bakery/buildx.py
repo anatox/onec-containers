@@ -67,7 +67,6 @@ def _run_reemitting(cmd: list[str]) -> int:
         cmd,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
-        bufsize=0,
         cwd=ROOT,
     )
     raw_out = sys.stdout.buffer
