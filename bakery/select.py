@@ -148,7 +148,10 @@ def transitive_dependents(seeds: set[str], rev_graph: dict[str, list[str]]) -> l
 
 def is_build_all_path(path: str) -> bool:
     """Проверяет, является ли путь глобальным триггером полной пересборки."""
-    return any(path == prefix.rstrip("/") or path.startswith(prefix) for prefix in GLOBAL_BUILD_ALL)
+    return any(
+        path == prefix or (prefix.endswith("/") and path.startswith(prefix))
+        for prefix in GLOBAL_BUILD_ALL
+    )
 
 
 def partition_publish(
