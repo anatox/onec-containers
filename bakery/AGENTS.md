@@ -47,7 +47,7 @@ Logic:
 
 ## Limitations
 
-- `git mv olddir newdir` when `newdir` doesn't exist pushes olddir INTO newdir (`newdir/olddir/`). Rename via a temp name: `git mv olddir /tmp/tmp` then `git mv /tmp/tmp newdir`.
+- `git mv olddir newdir` when `newdir` already exists pushes olddir INTO newdir (`newdir/olddir/`). Rename via a temp name: `git mv olddir .olddir.tmp` then `git mv .olddir.tmp newdir`.
 
 ## invoke task constraints
 
