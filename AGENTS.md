@@ -10,7 +10,7 @@ Full reference: `bakery/AGENTS.md` — selector implementation, CI internals, in
 
 Three shared files in `bakery/` + `*/bake.hcl` in every directory with a Dockerfile:
 - Shared: `bakery/versions.hcl` (version pins only), `bakery/common.hcl` (infrastructure/build variables + functions), `bakery/groups.hcl` (default/publish groups)
-- All HCL files are loaded with explicit `-f` flags (avoids bake's compose trap)
+- All HCL files are loaded with explicit `-f` flags — bake auto-discovery only finds `docker-bake.hcl`/`docker-bake.override.hcl` at the project root; it does not recursively scan `*/bake.hcl` or `bakery/*.hcl`
 - All HCL files are merged before evaluation — variables/functions from one file are visible in others
 - `./bake plan` runs `docker buildx bake --print`, writes JSON to stdout; progress goes to stderr
 
