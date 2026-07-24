@@ -123,5 +123,4 @@ program = BakeProgram(
 
 
 def main() -> None:
-    """Запуск консольной утилиты bake."""
     program.run()
