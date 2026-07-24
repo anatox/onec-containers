@@ -88,9 +88,8 @@ Overlay targets (s6-overlay, jdk, test-utils) are defined at the consumer, not i
 
 ### Compose
 
-- `compose.dev.yaml`: developer runtime stack (srv/db/repo/ras/client), images reference `${CONTAINER_REGISTRY_URL:-localhost}/...:${ONEC_VERSION:-local}`
-- `tests/compose.bake.yaml`: registry:2 helper for E2E testing of publish/cache
-- `COMPOSE_FILE=compose.dev.yaml` in `.envrc.example`
+- `compose.yaml`: developer runtime stack (srv/db/repo/ras/client), images reference `${CONTAINER_REGISTRY_URL:-localhost}/...:${ONEC_VERSION:-local}`
+- `tests/compose.yaml`: registry:2 helper for E2E testing of publish/cache
 
 ### Limitations (by design)
 
