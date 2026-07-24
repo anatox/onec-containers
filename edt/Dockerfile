@@ -6,6 +6,7 @@ FROM ${INSTALLER_IMAGE} AS installer
 
 SHELL ["/bin/bash", "-euo", "pipefail", "-c"]
 ARG DEBUG_TRACE
+
 ARG EDT_VERSION
 
 COPY ./distr /distr
