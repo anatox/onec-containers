@@ -78,29 +78,10 @@ def _run_reemitting(cmd: list[str]) -> int:
         cmd_line = _workflow_command(line)
         if cmd_line and cmd_line not in seen:
             seen.add(cmd_line)
-            raw_out.write((cmd_line + "\n").encode("utf-8"))
-            raw_out.flush()
-
-    stdout = proc.stdout
-    assert stdout is not None
-    while True:
-        chunk = stdout.read(65536)
-        if not chunk:
-            break
-        raw_out.write(chunk)
-        raw_out.flush()
-        pending += decoder.decode(chunk)
-        while True:
-            idx = min(
-                (i for i in (pending.find("\n"), pending.find("\r")) if i >= 0),
-                default=-1,
-            )
-            if idx < 0:
-                break
-            scan(pending[:idx])
-            pending = pending[idx + 1 :]
-    if pending:
-        scan(pending)
+            if not line.endswith(("\r", "\n")):  # незавершённая последняя строка
+                sys.stdout.write("\n")
+            sys.stdout.write(cmd_line + "\n")
+        sys.stdout.flush()
     return proc.wait()
 
 
