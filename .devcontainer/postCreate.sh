@@ -6,7 +6,10 @@ if [ ! -f .envrc ]; then
     echo "Created .envrc from .envrc.example — fill in 1C credentials"
 fi
 
-docker buildx version
+pre-commit install
+
+BASHRC="${_REMOTE_USER_HOME:-$HOME}/.bashrc"
+ZSHRC="${_REMOTE_USER_HOME:-$HOME}/.zshrc"
 
 ./bake --version >/dev/null
 
