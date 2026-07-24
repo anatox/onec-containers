@@ -161,8 +161,7 @@ Each directory is a specific image:
    ARG BASE_IMAGE=ubuntu:26.04
    FROM ${BASE_IMAGE}
    ```
-4. **Labels**: `org.opencontainers.image.title`/`.version` set in `bake.hcl`; `description = jsonencode({"image" = "..."})` stores the registry repo name (selector-only metadata, not a label). `org.opencontainers.image.authors` stays in Dockerfiles — per-image history and `git blame` are more useful than centralizing it in HCL.
-5. **Layer optimization**: combine RUN commands
+4. **Layer optimization**: combine RUN commands
 
 ### Environment Variables
 
