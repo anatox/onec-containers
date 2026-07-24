@@ -57,7 +57,7 @@
 
 Создайте [classic PAT](https://github.com/settings/tokens/new) с правами `write:packages` и используйте как секрет `GHCR_PUSH_TOKEN`.
 
-### Подпись образов через Cosign (опционально)
+### Подпись образов через Cosign
 
 Workflow автоматически подписывает образы через [Cosign](https://docs.sigstore.dev) при публикации. Без настройки шаг подписи пропускается — образы публикуются неподписанными.
 
