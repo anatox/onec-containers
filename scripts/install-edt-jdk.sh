@@ -14,6 +14,8 @@ if [ "$EDT_MAJOR" -gt 2024 ]; then
   exit 0
 fi
 
+apt-get update -qq
+
 DEBIAN_FRONTEND=noninteractive apt-get install -y -o=Dpkg::Use-Pty=0 --no-install-recommends \
   wget \
   apt-transport-https \
