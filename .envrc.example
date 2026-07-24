@@ -1,4 +1,3 @@
-export COMPOSE_FILE=compose.dev.yaml
 export CONTAINER_REGISTRY_URL=container-registry:5000
 
 export ONEC_USERNAME=YOUR_USERNAME_HERE
