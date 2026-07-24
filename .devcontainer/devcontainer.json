@@ -13,7 +13,9 @@
     },
     "ghcr.io/dhoeric/features/hadolint:1": {},
     "ghcr.io/ChristopherMacGown/devcontainer-features/direnv:1": {},
-    "ghcr.io/devcontainers-extra/features/shellcheck:1": {}
+    "ghcr.io/devcontainers-extra/features/shellcheck:1": {},
+    "ghcr.io/devcontainers-extra/features/pre-commit:2": {},
+    "ghcr.io/devcontainers-extra/features/npm-packages:1": {}
   },
   "customizations": {
     "vscode": {
