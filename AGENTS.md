@@ -188,7 +188,7 @@ When working with this repository:
 1. **Respect the bilingual nature**: Maintain Russian language in documentation and comments for 1C-specific terminology while providing English explanations for international contributors
 2. **Follow 1C conventions**: Understand that 1C:Enterprise has specific naming conventions, file structures, and deployment patterns
 3. **Consider enterprise context**: This is enterprise software with licensing, authentication, and complex deployment requirements
-4. **Maintain security**: Always use build arguments for credentials, never hardcode sensitive information
+4. **Maintain security**: Always use build secrets (`--mount=type=secret,id=...`) for credentials, never hardcode sensitive information
 5. **Test comprehensively**: Changes should be tested across multiple 1C versions and deployment scenarios
 6. **Document thoroughly**: Include both Russian and English documentation for new features
 

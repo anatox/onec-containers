@@ -1,44 +1,59 @@
-ARG DOCKER_REGISTRY_URL
-ARG BASE_IMAGE=ubuntu
-ARG BASE_TAG=24.04
-FROM ${DOCKER_REGISTRY_URL:+"$DOCKER_REGISTRY_URL/"}${BASE_IMAGE}:${BASE_TAG}
+ARG BASE_IMAGE=ubuntu:26.04
 
-LABEL maintainer="i@pravets.ru"
-LABEL author="Iosif Pravets"
+FROM ${BASE_IMAGE}
 
-ARG EXECUTOR_VERSION
+LABEL org.opencontainers.image.authors="Iosif Pravets <i@pravets.ru>, \
+    Anatolii Sereda <3011745+anatox@users.noreply.github.com>"
+
+SHELL ["/bin/bash", "-euo", "pipefail", "-c"]
+ARG DEBUG_TRACE
+
+ARG ELEMENTSCRIPT_VERSION
 
 WORKDIR /tmp
 
-RUN apt-get update \
-  && DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -y \
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt/lists,sharing=locked <<'EOF'
+  [ "${DEBUG_TRACE:-0}" -ne 0 ] && set -x
+  find /var/lib/apt/lists -name lock -delete 2>/dev/null || true
+  apt-get update -qq
+  DEBIAN_FRONTEND=noninteractive apt-get install -y -o=Dpkg::Use-Pty=0 --no-install-recommends \
     locales \
     ca-certificates \
-    # downloader dependencies
-    curl \
-    # build dependencies
-    unzip \
-  && rm -rf  \
-    /var/lib/apt/lists/* \
-    /var/cache/debconf \
-    /tmp/* \
-  && localedef -i ru_RU -c -f UTF-8 -A /usr/share/locale/locale.alias ru_RU.UTF-8
+    curl
+  locale-gen ru_RU.UTF-8
+EOF
 
 ENV LANG=ru_RU.UTF-8
 
-# Install Executor (используем BuildKit secret)
-RUN --mount=type=secret,id=dev1c_executor_api_key \
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt/lists,sharing=locked \
+    --mount=type=secret,id=elementscript_download_key <<'EOF'
+  find /var/lib/apt/lists -name lock -delete 2>/dev/null || true
+  apt-get update -qq
+  DEBIAN_FRONTEND=noninteractive apt-get install -y -o=Dpkg::Use-Pty=0 --no-install-recommends \
+    unzip
+  key="$(cat /run/secrets/elementscript_download_key)"
+  if [ -z "$key" ]; then
+    echo "::error::Не задано значение ELEMENTSCRIPT_DOWNLOAD_KEY"
+    exit 1
+  fi
+  [ "${DEBUG_TRACE:-0}" -ne 0 ] && set -x
   curl -sSL --fail \
-    -H "X-Developer-1c-Api:$(cat /run/secrets/dev1c_executor_api_key)" \
-    -o executor.zip \
-    https://developer.1c.ru/applications/Console/api/v1/download/executor/${EXECUTOR_VERSION}/linux \
-  && unzip executor.zip \
-  && rm executor.zip \
-  && mkdir -p /opt/1C/executor \
-  && cp -R * /opt/1C/executor \
-# cleanup
-  && rm -rf /tmp/* \
-  && apt purge -y unzip
+    -H "X-Developer-1c-Api:$key" \
+    -o script.zip \
+    https://developer.1c.ru/applications/Console/api/v1/download/elementscript/${ELEMENTSCRIPT_VERSION}/linux || {
+    echo "::error::Не удалось скачать дистрибутив Элемент.Скрипт ${ELEMENTSCRIPT_VERSION} — проверьте ключ ELEMENTSCRIPT_DOWNLOAD_KEY или доступность developer.1c.ru"
+    exit 1
+  }
+  unzip script.zip
+  rm script.zip
+  mkdir -p /opt/1C/script
+  cp -R ./* /opt/1C/script
+  [ "${DEBUG_TRACE:-0}" -ne 0 ] && DEBUG_ARGS=(-print) || DEBUG_ARGS=()
+  find /tmp -mindepth 1 "${DEBUG_ARGS[@]}" -delete || true
+  apt-get purge -y unzip
+EOF
 
-ENV PATH="/opt/1C/executor:$PATH"
-ENTRYPOINT ["/opt/1C/executor/executor"]
+ENV PATH="/opt/1C/script:$PATH"
+ENTRYPOINT ["/opt/1C/script/executor"]

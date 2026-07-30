@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+set -euo pipefail; [ "${DEBUG_TRACE:-0}" -ne 0 ] && set -x
+
+# shellcheck disable=SC2064
+trap "cd \"${PWD}\"" EXIT
+
+# Аргументы скрипта
+installer_type="${1:-}"; shift || true
+version="${1:-}"; shift || true
+features=("$@")
+
+if [ -z "${installer_type:-}" ]; then
+    echo "ОШИБКА: Не указан тип установки (\$1)" >&2;
+    exit 1
+fi
+if [ -z "${version:-}" ]; then
+    echo "ОШИБКА: Не указана версия (\$2)" >&2;
+    exit 1
+fi
+if [ -z "${ONEC_USERNAME:+****}" ]; then
+    echo "ОШИБКА: Не задано значение ONEC_USERNAME" >&2;
+    exit 1
+fi
+if [ -z "${ONEC_PASSWORD:+****}" ]; then
+    echo "ОШИБКА: Не задано значение ONEC_PASSWORD" >&2;
+    exit 1
+fi
+
+export DOWNLOADS_ROOT="/var/cache/yard"
+LIBS="$(cd "$(dirname "${BASH_SOURCE[0]}")/../libexec" && pwd)"
+
+{ set +x; } 2>/dev/null
+export YARD_RELEASES_USER="$ONEC_USERNAME"
+export YARD_RELEASES_PWD="$ONEC_PASSWORD"
+[ "${DEBUG_TRACE:-0}" -ne 0 ] && set -x
+
+"$LIBS/yard-download.sh" "$installer_type" "$version"
+
+if [ "$installer_type" = "edt" ]; then
+    "$LIBS/install-edt.sh" "$version"
+    "$LIBS/create-symlinks-edt.sh"
+else
+    "$LIBS/install-packages.sh" "$installer_type" "$version" "${features[@]}"
+    "$LIBS/create-symlinks-1cv8.sh"
+    "$LIBS/fix-deps.sh"
+    [ "${DEBUG_TRACE:-0}" -ne 0 ] && DEBUG_ARGS=(-v) || DEBUG_ARGS=()
+    find "${DOWNLOADS_ROOT:?}" -mindepth 1 "${DEBUG_ARGS[@]}" -delete || true
+fi
+
+"$LIBS/fix-menu-items.sh"
