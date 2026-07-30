@@ -1,10 +1,7 @@
 #!/usr/bin/env sh
 set -eu; [ "${DEBUG_TRACE:-0}" = "1" ] && set -x
 
-if [ ! -x /usr/bin/distrobox-host-exec ]; then
-    echo "ОШИБКА: /usr/bin/distrobox-host-exec не найден или не является исполняемым" >&2
-    exit 1
-fi
+# https://distrobox.it/useful_tips/#using-hosts-podman-or-docker-inside-a-distrobox
 
 [ ! -e /usr/bin/sh ] && ln -fs /bin/sh /usr/bin/sh
 ln -fs /usr/bin/distrobox-host-exec /usr/local/bin/docker
