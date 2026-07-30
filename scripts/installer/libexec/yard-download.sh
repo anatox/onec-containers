@@ -211,8 +211,6 @@ try_download() {
 
 # Удаление ненужных файлов
 mkdir -p $DOWNLOADS_PATH
-rm -f $DOWNLOADS_PATH/.gitkeep
-chmod 777 -R /tmp
 
 # Проверяем, есть ли дистрибутивы локально
 check_local_distr

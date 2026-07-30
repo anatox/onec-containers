@@ -177,6 +177,10 @@ Follow existing pattern for Make targets:
 - Log download URLs and file checksums
 - Preserve error messages in Russian when from 1C tools
 
+## Pull/Merge Request Review
+
+Reviews must focus exclusively on the changes introduced in the pull request. Pre-existing code, style, or behaviour outside the diff is out of scope and should not be raised as blocking feedback. The only exception is when a change in the PR causes a regression in code that was not itself modified — in that case, call it out explicitly and tie the report back to the change that triggered it.
+
 ## AI Assistant Guidelines
 
 When working with this repository:
