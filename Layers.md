@@ -1,91 +1,149 @@
 # Примеры сборки и наслаивания
 
-Ниже список последовательно собираемых образов для различных целей. Каждый следущий слой собирается поверх предыдущего. В Dockerfile базовый образ указывается с помощью переменных BASE_IMAGE и BASE_TAG.
+Ниже список последовательно собираемых образов для различных целей. Каждый следующий слой собирается поверх предыдущего. Сборка — через `./bake build <target>` (см. [README.md](./README.md)).
+
+Полный состав слоёв в каждой цепочке соответствует плану (графу зависимостей HCL):
+```shell
+./bake plan
+```
 
 ## Запуск 1С
 
-* client
-* s6-overlay
-* client-vnc
+* [`client`](client/bake.hcl)
+* [`s6-overlay (client-s6)`](s6-overlay/bake.hcl)
+* [`client-vnc`](client-vnc/bake.hcl)
+
+Сборка:
+```shell
+./bake build client-vnc
+```
 
 ## 1С и OneScript
 
-* client
-* s6-overlay
-* client-vnc
-* oscript
+* [`client`](client/bake.hcl)
+* [`s6-overlay (client-s6)`](s6-overlay/bake.hcl)
+* [`client-vnc`](client-vnc/bake.hcl)
+* [`oscript (client-vnc-oscript)`](oscript/bake.hcl)
+
+Сборка:
+```shell
+./bake build client-vnc-oscript
+```
 
 ## 1С + OneScript для запуска VA
 
-* client
-* s6-overlay
-* client-vnc
-* oscript
-* test-utils
+* [`client`](client/bake.hcl)
+* [`s6-overlay (client-s6)`](s6-overlay/bake.hcl)
+* [`client-vnc`](client-vnc/bake.hcl)
+* [`oscript (client-vnc-oscript)`](oscript/bake.hcl)
+* [`jdk (client-vnc-oscript-jdk)`](jdk/bake.hcl)
+* [`test-utils`](test-utils/bake.hcl)
+
+Сборка:
+```shell
+./bake build test-utils
+```
 
 ## 1C как Jenkins агент
 
-* client
-* s6-overlay
-* client-vnc
-* jdk
-* swarm-jenkins-agent или k8s-jenkins-agent
+* [`client`](client/bake.hcl)
+* [`s6-overlay (client-s6)`](s6-overlay/bake.hcl)
+* [`client-vnc`](client-vnc/bake.hcl)
+* [`oscript (client-vnc-oscript)`](oscript/bake.hcl)
+* [`jdk (client-vnc-oscript-jdk)`](jdk/bake.hcl)
+* [`test-utils`](test-utils/bake.hcl)
+* [`k8s-jenkins-agent  (base-jenkins-agent-k8s)`](k8s-jenkins-agent/bake.hcl) или [`swarm-jenkins-agent (base-jenkins-agent-swarm)`](swarm-jenkins-agent/bake.hcl)
 
-## 1С + OneScript как Jenkins агент
-
-* client
-* s6-overlay
-* client-vnc
-* oscript
-* jdk
-* swarm-jenkins-agent или k8s-jenkins-agent
+Сборка:
+```shell
+./bake build base-jenkins-agent-k8s
+./bake build base-jenkins-agent-swarm
+```
 
 ## 1С + OneScript как Jenkins агент для запуска тестов
 
-* client
-* s6-overlay
-* client-vnc
-* oscript
-* jdk
-* test-utils
-* swarm-jenkins-agent или k8s-jenkins-agent
+Полная цепочка слоёв, без сокращений:
 
-Реализовано в скриптах:
+* [`client`](client/bake.hcl)
+* [`s6-overlay (client-s6)`](s6-overlay/bake.hcl)
+* [`client-vnc`](client-vnc/bake.hcl)
+* [`oscript (client-vnc-oscript)`](oscript/bake.hcl)
+* [`jdk (client-vnc-oscript-jdk)`](jdk/bake.hcl)
+* [`test-utils`](test-utils/bake.hcl)
+* [`k8s-jenkins-agent (base-jenkins-agent-k8s)`](k8s-jenkins-agent/bake.hcl) или [`swarm-jenkins-agent (base-jenkins-agent-swarm)`](swarm-jenkins-agent/bake.hcl)
 
-* [build-base-swarm-jenkins-agent.sh](build-base-swarm-jenkins-agent.sh)
-* [build-base-k8s-jenkins-agent.sh](build-base-k8s-jenkins-agent.sh)
+Сборка:
+```shell
+./bake build base-jenkins-agent-k8s
+./bake build base-jenkins-agent-swarm
+```
 
 ## EDT
 
-* edt
+* [`edt`](edt/bake.hcl)
 
-Реализовано в скриптах:
+Сборка:
+```shell
+./bake build edt
+```
 
-* [build-edt.sh](build-edt.sh)
+## EDT + s6 (промежуточный слой)
+
+* [`edt`](edt/bake.hcl)
+* [`s6-overlay (edt-s6)`](s6-overlay/bake.hcl)
+
+Сборка:
+```shell
+./bake build edt-s6
+```
+
+## EDT Toolbox (distrobox)
+
+* [`client-toolbox (toolbox)`](client/bake.hcl)
+* [`edt-toolbox (toolbox)`](edt/bake.hcl)
+* [`edt-toolbox-client (base)`](edt/bake.hcl)
+
+Сборка:
+```shell
+./bake build edt-toolbox-client
+```
 
 ## EDT как Jenkins агент
 
-* edt
-* s6-overlay
-* swarm-jenkins-agent или k8s-jenkins-agent
+* [`edt`](edt/bake.hcl)
+* [`s6-overlay (edt-s6)`](s6-overlay/bake.hcl)
+* [`k8s-jenkins-agent (edt-agent-k8s)`](k8s-jenkins-agent/bake.hcl) или [`swarm-jenkins-agent (edt-agent-swarm)`](swarm-jenkins-agent/bake.hcl)
 
-Реализовано в скриптах:
-
-* [build-edt-swarm-agent.sh](build-edt-swarm-agent.sh)
-* [build-edt-k8s-agent.sh](build-edt-k8s-agent.sh)
+Сборка:
+```shell
+./bake build edt-agent-k8s
+./bake build edt-agent-swarm
+```
 
 ## OneScript как Jenkins агент
 
-* oscript поверх library/eclipse-temurin:17
-* s6-overlay
-* swarm-jenkins-agent или k8s-jenkins-agent
+* [`oscript-jdk (поверх eclipse-temurin:17)`](oscript/bake.hcl)
+* [`s6-overlay (oscript-jdk-s6)`](s6-overlay/bake.hcl)
+* [`k8s-jenkins-agent (oscript-jenkins-agent-k8s)`](k8s-jenkins-agent/bake.hcl) или [`swarm-jenkins-agent (oscript-jenkins-agent-swarm)`](swarm-jenkins-agent/bake.hcl)
 
-Реализовано в скриптах:
-
-* [build-oscript-swarm-agent.sh](build-oscript-swarm-agent.sh)
-* [build-oscript-k8s-agent.sh](build-oscript-k8s-agent.sh) # TODO
+Сборка:
+```shell
+./bake build oscript-jenkins-agent-k8s
+./bake build oscript-jenkins-agent-swarm
+```
 
 ## Сервер хранилища + Apache
 
-* crs
-* crs-apache
+* [`crs`](crs/bake.hcl)
+* [`crs-apache`](crs-apache/bake.hcl)
+
+```shell
+./bake build crs-apache
+```
+
+## Полная сборка
+
+```bash
+./bake build default    # все цели
+./bake build publish    # только публикуемые
+```
