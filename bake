@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+set -euo pipefail
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+VENV="$ROOT/.venv"
+STAMP="$VENV/.pyproject.sha"
+WANT="$(sha256sum "$ROOT/pyproject.toml" | cut -d' ' -f1)"
+if [[ ! -x "$VENV/bin/bake" || "$(cat "$STAMP" 2>/dev/null || true)" != "$WANT" ]]; then
+  echo "==> Bootstrapping bakery venv..." >&2
+  python3 -m venv "$VENV"
+  echo "==> Installing bakery dependencies..." >&2
+  "$VENV/bin/pip" install --quiet --editable "${ROOT}[dev]"
+  printf '%s' "$WANT" > "$STAMP"
+  echo "==> Bakery venv ready." >&2
+fi
+cd "$ROOT"
+exec "$VENV/bin/bake" "$@"
