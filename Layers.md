@@ -53,7 +53,6 @@
 Реализовано в скриптах:
 
 * [build-base-swarm-jenkins-agent.sh](build-base-swarm-jenkins-agent.sh)
-* [build-base-swarm-jenkins-agent.bat](build-base-swarm-jenkins-agent.bat)
 * [build-base-k8s-jenkins-agent.sh](build-base-k8s-jenkins-agent.sh)
 
 ## EDT
@@ -63,7 +62,6 @@
 Реализовано в скриптах:
 
 * [build-edt.sh](build-edt.sh)
-* [build-edt.bat](build-edt.bat)
 
 ## EDT как Jenkins агент
 
@@ -74,7 +72,6 @@
 Реализовано в скриптах:
 
 * [build-edt-swarm-agent.sh](build-edt-swarm-agent.sh)
-* [build-edt-swarm-agent.bat](build-edt-swarm-agent.bat)
 * [build-edt-k8s-agent.sh](build-edt-k8s-agent.sh)
 
 ## OneScript как Jenkins агент
@@ -86,7 +83,6 @@
 Реализовано в скриптах:
 
 * [build-oscript-swarm-agent.sh](build-oscript-swarm-agent.sh)
-* [build-oscript-swarm-agent.bat](build-oscript-swarm-agent.bat)
 * [build-oscript-k8s-agent.sh](build-oscript-k8s-agent.sh) # TODO
 
 ## Сервер хранилища + Apache
