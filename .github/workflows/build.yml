@@ -51,7 +51,7 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           repo-token: ${{ github.token }}
-          running-workflow-name: await-lint,await-test
+          running-workflow-name: await-checks
           wait-interval: 15
           checks-discovery-timeout: 300
           allowed-conclusions: success,skipped,neutral
