@@ -1,4 +1,9 @@
+* text=auto
+
 *.sh eol=lf
+Containerfile eol=lf
+Dockerfile eol=lf
+
 client/configs/** eol=lf
 client-vnc/configs/** eol=lf
 swarm-jenkins-agent/configs/** eol=lf
