@@ -1,0 +1,4 @@
+* text=auto
+
+run text eol=lf
+type text eol=lf

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Установка значений по умолчанию
 setup_defaults() {

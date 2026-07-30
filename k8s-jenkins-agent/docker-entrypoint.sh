@@ -1,7 +1,7 @@
-#!/bin/sh
+#!/usr/bin/env sh
 
 if [ -f "/init" ]; then
     /init &
 fi
 
-/usr/local/bin/jenkins-agent "$@"
+exec /usr/local/bin/jenkins-agent "$@"

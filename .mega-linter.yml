@@ -1,0 +1,30 @@
+APPLY_FIXES: none
+# APPLY_FIXES is intentionally disabled — fixes are produced via UPDATED_SOURCES_REPORTER
+# (megalinter-reports/updated_sources/MegaLinter-reports.zip), then applied to the working
+# tree in pre-build.yml and turned into reviewdog suggestions by reviewdog/action-suggester.
+VALIDATE_ALL_CODEBASE: false        # ≈ reviewdog filter_mode: added (PR-changed files only)
+
+# One commit status per linter (visible in PR's Checks section alongside other jobs)
+GITHUB_STATUS_REPORTER: true
+# Markdown summary written to $GITHUB_STEP_SUMMARY (visible at the bottom of the job summary page)
+MARKDOWN_SUMMARY_REPORTER: true
+
+# Run ONLY the linters that replace the old per-tool jobs — not the other ~100
+ENABLE_LINTERS:
+  - DOCKERFILE_HADOLINT
+  - ACTION_ACTIONLINT
+  - BASH_SHELLCHECK
+  - PYTHON_RUFF          # ruff check
+  - PYTHON_RUFF_FORMAT   # ruff format --check
+  - PYTHON_MYPY
+
+# ruff format was level:info in your old setup → report but don't block
+DISABLE_ERRORS_LINTERS:
+  - PYTHON_RUFF_FORMAT
+
+# mypy: whole-program mode + install your project so imports resolve
+PYTHON_MYPY_CLI_LINT_MODE: project
+PRE_COMMANDS:
+  - command: pip install --break-system-packages .[dev]
+    cwd: workspace
+    continue_if_failed: false
