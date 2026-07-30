@@ -1,0 +1,11 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+
+---
+language: "ru-RU"
+reviews:
+  auto_review:
+    enabled: true
+    drafts: false
+  pre_merge_checks:
+    docstrings:
+      threshold: 60

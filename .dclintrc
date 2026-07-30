@@ -1,0 +1,55 @@
+{
+  "$schema": "https://raw.githubusercontent.com/zavoloklom/docker-compose-linter/refs/heads/main/schemas/linter-config.schema.json",
+  "rules": {
+    "top-level-properties-order": [
+      1,
+      {
+        "customOrder": [
+          "name",
+          "x-properties",
+          "services",
+          "version",
+          "volumes",
+          "networks",
+          "secrets",
+          "configs"
+        ]
+      }
+    ],
+    "services-alphabetical-order": 0,
+    "service-keys-order": [
+      1,
+      {
+        "groupOrder": [
+          "Core Definitions",
+          "Hostname",
+          "Ports",
+          "Data Management and Configuration",
+          "Runtime Behavior",
+          "Networking"
+        ],
+        "groups": {
+          "Hostname": [
+            "hostname"
+          ],
+          "Ports": [
+            "ports"
+          ],
+          "Runtime Behavior": [
+            "entrypoint",
+            "command"
+          ],
+          "Networking": [
+            "networks"
+          ]
+        }
+      }
+    ],
+    "require-quotes-in-ports": [
+      1,
+      {
+        "quoteType": "double"
+      }
+    ]
+  }
+}
